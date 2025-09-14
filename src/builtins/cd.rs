@@ -1,5 +1,6 @@
 use super::BuiltinCommand;
 use crate::core::parser::ParsedCommand;
+use crate::utils::path::expand_tilde;
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -24,9 +25,16 @@ impl BuiltinCommand for CdCommand {
                     .map(PathBuf::from)
                     .unwrap_or_else(|_| current_dir.clone())
             } else {
-                let mut target = current_dir.clone();
-                target.push(path);
-                target.canonicalize().unwrap_or(target)
+                // Expand tilde and resolve the path
+                let expanded_path = expand_tilde(path);
+
+                if expanded_path.is_absolute() {
+                    expanded_path.canonicalize().unwrap_or(expanded_path)
+                } else {
+                    let mut target = current_dir.clone();
+                    target.push(&expanded_path);
+                    target.canonicalize().unwrap_or(target)
+                }
             }
         };
 

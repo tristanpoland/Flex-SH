@@ -2,7 +2,19 @@
   "permissions": {
     "allow": [
       "Bash(cargo check:*)",
-      "Bash(cargo build:*)"
+      "Bash(cargo build:*)",
+      "Bash(.targetreleaseflex-sh.exe:*)",
+      "Bash(\"./target/release/flex-sh.exe\" -c \"help\")",
+      "Bash(\"./target/release/flex-sh.exe\" -c \"cd ~; pwd\")",
+      "Bash(\"./target/release/flex-sh.exe\" -c \"cd ~\")",
+      "Bash(\"./target/release/flex-sh.exe\")",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(./target/release/flex-sh.exe -c \"help\")",
+      "Bash(./target/release/flex-sh.exe -c \"cd ~; pwd\")",
+      "Bash(./target/release/flex-sh.exe -c \"cd ~\")",
+      "Bash(./target/release/flex-sh.exe -c pwd)",
+      "Bash(timeout:*)"
     ],
     "deny": [],
     "ask": []

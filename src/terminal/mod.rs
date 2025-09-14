@@ -66,50 +66,60 @@ impl Terminal {
             return prompt.to_string();
         }
 
-        let mut colored_prompt = String::new();
-        let mut in_brackets = false;
-        let mut current_segment = String::new();
+        // Apply colors with proper rustyline invisible character markers
+        let mut result = String::new();
+        let mut chars = prompt.chars().peekable();
 
-        for ch in prompt.chars() {
+        while let Some(ch) = chars.next() {
             match ch {
                 '[' => {
-                    if !current_segment.is_empty() {
-                        colored_prompt.push_str(&current_segment);
-                        current_segment.clear();
+                    // Collect bracket content
+                    let mut bracket_content = String::new();
+                    bracket_content.push('[');
+
+                    while let Some(inner_ch) = chars.next() {
+                        bracket_content.push(inner_ch);
+                        if inner_ch == ']' {
+                            break;
+                        }
                     }
-                    in_brackets = true;
-                    current_segment.push(ch);
+
+                    // Get the ANSI-colored version
+                    let colored_text = bracket_content.bright_cyan().to_string();
+
+                    // Wrap ONLY the ANSI codes in \x01..\x02, not the visible text
+                    // This is tricky - we need to separate ANSI codes from visible chars
+                    let visible_chars = &bracket_content;
+                    result.push_str("\x01");
+                    result.push_str(&format!("\x1b[96m")); // bright cyan
+                    result.push_str("\x02");
+                    result.push_str(visible_chars);
+                    result.push_str("\x01");
+                    result.push_str("\x1b[0m"); // reset
+                    result.push_str("\x02");
                 }
-                ']' => {
-                    current_segment.push(ch);
-                    if in_brackets {
-                        colored_prompt.push_str(&current_segment.bright_blue().to_string());
-                        current_segment.clear();
-                        in_brackets = false;
-                    }
+                '$' | '#' | '%' => {
+                    // Color prompt symbols
+                    result.push_str("\x01");
+                    result.push_str(&format!("\x1b[95;1m")); // bright magenta bold
+                    result.push_str("\x02");
+                    result.push(ch);
+                    result.push_str("\x01");
+                    result.push_str("\x1b[0m"); // reset
+                    result.push_str("\x02");
                 }
-                '$' | '%' | '#' => {
-                    current_segment.push(ch);
-                    if !in_brackets {
-                        colored_prompt.push_str(&current_segment.bright_magenta().bold().to_string());
-                        current_segment.clear();
-                    }
+                ' ' => {
+                    // Preserve spaces exactly
+                    result.push(' ');
                 }
                 _ => {
-                    current_segment.push(ch);
+                    // Regular characters
+                    result.push(ch);
                 }
             }
         }
 
-        if !current_segment.is_empty() {
-            if in_brackets {
-                colored_prompt.push_str(&current_segment.bright_blue().to_string());
-            } else {
-                colored_prompt.push_str(&current_segment);
-            }
-        }
-
-        colored_prompt
+        result
     }
 
     pub fn colorize_output(&self, text: &str, color_type: OutputColorType) -> String {
