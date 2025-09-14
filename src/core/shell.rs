@@ -8,6 +8,8 @@ use log::{debug, info, warn};
 use rustyline::{Editor, Helper, Context, Config as EditorConfig, CompletionType, EditMode};
 use rustyline::completion::{Completer, Pair, extract_word};
 use std::path::{Path, PathBuf};
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use rustyline::history::DefaultHistory;
 use rustyline::highlight::Highlighter;
 use rustyline_derive::{Helper, Hinter, Validator};
@@ -163,6 +165,93 @@ impl ShellHelper {
         debug!("Found {} manual matches", matches.len());
         if matches.is_empty() { None } else { Some(matches) }
     }
+
+    // Complete executable programs from PATH
+    fn complete_programs(&self, prefix: &str) -> Option<Vec<Pair>> {
+        debug!("Completing programs for prefix: '{}'", prefix);
+
+        if prefix.is_empty() {
+            return None; // Don't complete all programs with empty prefix
+        }
+
+        let mut matches = Vec::new();
+        let paths = std::env::var("PATH").unwrap_or_default();
+
+        #[cfg(windows)]
+        let path_separator = ";";
+        #[cfg(not(windows))]
+        let path_separator = ":";
+
+        #[cfg(windows)]
+        let executable_extensions = vec!["exe", "bat", "cmd", "com"];
+
+        for path_dir in paths.split(path_separator) {
+            if path_dir.is_empty() {
+                continue;
+            }
+
+            let dir_path = Path::new(path_dir);
+            if !dir_path.exists() || !dir_path.is_dir() {
+                continue;
+            }
+
+            if let Ok(entries) = dir_path.read_dir() {
+                for entry in entries {
+                    if let Ok(entry) = entry {
+                        let file_name = entry.file_name();
+                        let name = file_name.to_string_lossy();
+
+                        // Check if it's an executable
+                        #[cfg(windows)]
+                        let is_executable = {
+                            if let Some(ext) = entry.path().extension() {
+                                let ext = ext.to_string_lossy().to_lowercase();
+                                executable_extensions.contains(&ext.as_str())
+                            } else {
+                                false
+                            }
+                        };
+
+                        #[cfg(not(windows))]
+                        let is_executable = {
+                            entry.path().is_file() &&
+                            entry.metadata().map(|m| m.permissions().mode() & 0o111 != 0).unwrap_or(false)
+                        };
+
+                        if is_executable && name.starts_with(prefix) {
+                            // Remove file extension on Windows for cleaner completion
+                            #[cfg(windows)]
+                            let display_name = {
+                                if let Some(stem) = entry.path().file_stem() {
+                                    stem.to_string_lossy().to_string()
+                                } else {
+                                    name.to_string()
+                                }
+                            };
+
+                            #[cfg(not(windows))]
+                            let display_name = name.to_string();
+
+                            // Avoid duplicates
+                            if !matches.iter().any(|m: &Pair| m.display == display_name) {
+                                matches.push(Pair {
+                                    display: display_name.clone(),
+                                    replacement: display_name,
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Sort matches and limit to reasonable number
+        matches.sort_by(|a, b| a.display.cmp(&b.display));
+        matches.truncate(100); // Limit to 100 programs to avoid overwhelming user
+
+        debug!("Found {} program matches", matches.len());
+        if matches.is_empty() { None } else { Some(matches) }
+    }
 }
 
 // Custom Completer implementation for better relative path handling
@@ -185,21 +274,29 @@ impl Completer for ShellHelper {
 
         debug!("Completion request for word: '{}' at position {} (start={})", word, pos, start);
 
-        // Handle built-in commands (only at start of line)
+        // Handle command completion (only at start of line)
         if start == 0 {
+            let mut command_matches = Vec::new();
+
+            // Built-in commands first
             let builtin_commands = [
                 "cd", "echo", "exit", "help", "history", "ls", "pwd",
                 "alias", "env", "which", "clear"
             ];
 
-            let command_matches: Vec<Pair> = builtin_commands
-                .iter()
-                .filter(|cmd| cmd.starts_with(word))
-                .map(|cmd| Pair {
-                    display: cmd.to_string(),
-                    replacement: cmd.to_string(),
-                })
-                .collect();
+            for cmd in &builtin_commands {
+                if cmd.starts_with(word) {
+                    command_matches.push(Pair {
+                        display: cmd.to_string(),
+                        replacement: cmd.to_string(),
+                    });
+                }
+            }
+
+            // Then add executable programs from PATH
+            if let Some(path_matches) = self.complete_programs(&word) {
+                command_matches.extend(path_matches);
+            }
 
             if !command_matches.is_empty() {
                 debug!("Found {} command matches", command_matches.len());

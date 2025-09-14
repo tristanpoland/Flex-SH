@@ -1,0 +1,436 @@
+# Flex-SH Example Configuration
+# This file demonstrates all available customization options for the Flex-SH shell
+# Copy this to ~/.config/flex-sh/config.toml or specify with --config flag
+
+# ============================================================================
+# SHELL APPEARANCE & BEHAVIOR
+# ============================================================================
+
+[shell]
+# Enable colored output throughout the shell
+colors_enabled = true
+
+# Shell prompt configuration
+# Available variables: {user}, {hostname}, {cwd}, {git_branch}, {time}, {exit_code}
+prompt_format = "[{user}@{hostname} {cwd}]$ "
+
+# Custom colored prompt (overrides prompt_format if set)
+# Use ANSI escape sequences for colors
+colored_prompt = "\\[\033[1;36m\\][\\[\033[1;32m\\]{user}\\[\033[0m\\]@\\[\033[1;34m\\]{hostname}\\[\033[1;36m\\] \\[\033[1;33m\\]{cwd}\\[\033[1;36m\\]]\\[\033[1;35m\\]$\\[\033[0m\\] "
+
+# Show git branch in prompt when in a git repository
+show_git_branch = true
+
+# Show last command exit code if non-zero
+show_exit_code = true
+
+# Show current time in prompt
+show_time = false
+time_format = "%H:%M:%S"
+
+# Welcome message displayed on shell startup
+welcome_message = """
+╔════════════════════════════════════════╗
+║            Welcome to Flex-SH          ║
+║     A Modern, Feature-Rich Shell       ║
+╚════════════════════════════════════════╝
+
+Type 'help' for available commands.
+"""
+
+# Display welcome message on startup
+show_welcome = true
+
+# ============================================================================
+# HISTORY CONFIGURATION
+# ============================================================================
+
+[history]
+# Maximum number of commands to store in history
+max_entries = 10000
+
+# History file location (relative to home directory or absolute path)
+file_path = ".flex_sh_history"
+
+# Save history immediately after each command
+save_immediately = true
+
+# Ignore commands that start with a space
+ignore_space_prefix = true
+
+# Ignore duplicate consecutive commands
+ignore_duplicates = true
+
+# Commands to never save to history
+ignore_patterns = [
+    "^exit$",
+    "^clear$",
+    "^history",
+    "^pwd$"
+]
+
+# Enable fuzzy history search
+fuzzy_search = true
+
+# History search key bindings
+search_up_key = "Ctrl+R"
+search_down_key = "Ctrl+S"
+
+# ============================================================================
+# TAB COMPLETION SETTINGS
+# ============================================================================
+
+[completion]
+# Enable tab completion
+enabled = true
+
+# Case sensitive completion
+case_sensitive = false
+
+# Show hidden files/directories in completion
+show_hidden = false
+
+# Maximum number of completion candidates to display
+max_candidates = 50
+
+# Completion behavior
+complete_directories_first = true
+add_trailing_slash = true
+
+# Custom completion for specific commands
+[completion.custom]
+# Add custom completions for 'git' command
+git = ["add", "commit", "push", "pull", "status", "log", "branch", "checkout", "merge", "rebase"]
+
+# Add custom completions for 'docker' command
+docker = ["run", "build", "push", "pull", "ps", "images", "exec", "logs", "stop", "rm", "rmi"]
+
+# ============================================================================
+# BUILT-IN COMMANDS CONFIGURATION
+# ============================================================================
+
+[builtins]
+# Enable/disable individual built-in commands
+cd_enabled = true
+echo_enabled = true
+ls_enabled = true
+pwd_enabled = true
+history_enabled = true
+help_enabled = true
+alias_enabled = true
+env_enabled = true
+which_enabled = true
+clear_enabled = true
+exit_enabled = true
+
+# ls command configuration
+[builtins.ls]
+default_args = ["-la"]
+colors = true
+human_readable = true
+show_hidden = false
+
+# cd command configuration
+[builtins.cd]
+# Remember directory history for 'cd -'
+remember_history = true
+max_history = 20
+
+# Support tilde expansion
+expand_tilde = true
+
+# Auto-create directories if they don't exist (with confirmation)
+auto_create = false
+
+# echo command configuration
+[builtins.echo]
+# Enable escape sequence interpretation by default
+interpret_escapes = true
+
+# Support color output
+enable_colors = true
+
+# ============================================================================
+# ALIASES
+# ============================================================================
+
+[aliases]
+# File operations
+ll = "ls -la"
+la = "ls -A"
+l = "ls -CF"
+dir = "ls -la"
+
+# Navigation shortcuts
+".." = "cd .."
+"..." = "cd ../.."
+"~" = "cd ~"
+"-" = "cd -"
+
+# Git shortcuts
+gs = "git status"
+ga = "git add"
+gc = "git commit"
+gp = "git push"
+gl = "git log --oneline"
+gd = "git diff"
+
+# System shortcuts
+cls = "clear"
+h = "history"
+e = "echo"
+
+# Directory operations
+md = "mkdir -p"
+rd = "rmdir"
+
+# Process management
+psg = "ps aux | grep"
+k = "kill"
+k9 = "kill -9"
+
+# Network utilities
+ping4 = "ping -4"
+ping6 = "ping -6"
+
+# ============================================================================
+# COLOR SCHEME CONFIGURATION
+# ============================================================================
+
+[colors]
+# Enable colors globally
+enabled = true
+
+# Color scheme: "default", "dark", "light", "monokai", "solarized"
+scheme = "default"
+
+# Custom color definitions (override scheme colors)
+[colors.custom]
+# Text colors
+primary = "#FFFFFF"
+secondary = "#CCCCCC"
+accent = "#00FFFF"
+success = "#00FF00"
+warning = "#FFFF00"
+error = "#FF0000"
+info = "#0080FF"
+
+# Prompt component colors
+user_color = "#32CD32"        # Lime green
+hostname_color = "#1E90FF"    # Dodger blue
+directory_color = "#FFD700"   # Gold
+git_branch_color = "#FF69B4"  # Hot pink
+time_color = "#DDA0DD"        # Plum
+prompt_symbol_color = "#FF1493" # Deep pink
+
+# File type colors for ls output
+directory = "#1E90FF"
+executable = "#00FF00"
+symlink = "#00FFFF"
+broken_symlink = "#FF0000"
+regular_file = "#FFFFFF"
+hidden_file = "#808080"
+
+# ============================================================================
+# TERMINAL INTERFACE SETTINGS
+# ============================================================================
+
+[terminal]
+# Terminal title format
+title_format = "Flex-SH - {cwd}"
+
+# Update terminal title automatically
+update_title = true
+
+# Cursor style: "block", "underline", "bar"
+cursor_style = "block"
+
+# Enable cursor blinking
+cursor_blink = true
+
+# Terminal size detection
+auto_resize = true
+
+# Mouse support
+mouse_enabled = false
+
+# Alternative screen support
+alt_screen = true
+
+# ============================================================================
+# PERFORMANCE & BEHAVIOR
+# ============================================================================
+
+[performance]
+# Enable command caching for faster execution
+cache_commands = true
+
+# Cache timeout in seconds
+cache_timeout = 300
+
+# Maximum number of background processes
+max_background_processes = 10
+
+# Cleanup zombie processes automatically
+auto_cleanup_zombies = true
+
+# Preload commonly used commands
+preload_commands = ["ls", "cd", "pwd", "echo"]
+
+# ============================================================================
+# LOGGING CONFIGURATION
+# ============================================================================
+
+[logging]
+# Log level: "error", "warn", "info", "debug", "trace"
+level = "info"
+
+# Log file location
+log_file = "~/.local/share/flex-sh/flex-sh.log"
+
+# Enable logging to file
+file_logging = true
+
+# Enable console logging
+console_logging = false
+
+# Maximum log file size in MB
+max_file_size = 10
+
+# Number of log files to rotate
+max_files = 3
+
+# Log format string
+format = "[{timestamp}] [{level}] {message}"
+
+# ============================================================================
+# KEYBINDINGS
+# ============================================================================
+
+[keybindings]
+# Editing mode: "emacs" or "vi"
+edit_mode = "emacs"
+
+# Custom key bindings (Emacs-style notation)
+[keybindings.custom]
+"Ctrl+A" = "beginning_of_line"
+"Ctrl+E" = "end_of_line"
+"Ctrl+K" = "kill_line"
+"Ctrl+U" = "unix_line_discard"
+"Ctrl+W" = "unix_word_rubout"
+"Ctrl+Y" = "yank"
+"Ctrl+L" = "clear_screen"
+"Ctrl+D" = "delete_char"
+"Ctrl+H" = "backward_delete_char"
+"Ctrl+T" = "transpose_chars"
+"Alt+F" = "forward_word"
+"Alt+B" = "backward_word"
+"Alt+D" = "kill_word"
+"Alt+Backspace" = "backward_kill_word"
+"Ctrl+R" = "reverse_search_history"
+"Ctrl+G" = "abort"
+"Tab" = "complete"
+"Shift+Tab" = "menu_complete"
+
+# ============================================================================
+# PLUGINS & EXTENSIONS
+# ============================================================================
+
+[plugins]
+# Plugin directory
+plugin_dir = "~/.config/flex-sh/plugins"
+
+# Auto-load plugins on startup
+auto_load = true
+
+# Enabled plugins
+enabled = [
+    "git-integration",
+    "syntax-highlighting",
+    "auto-suggestions",
+    "directory-bookmarks"
+]
+
+# Plugin-specific configuration
+[plugins.git-integration]
+show_status = true
+show_branch = true
+show_stash_count = false
+
+[plugins.syntax-highlighting]
+highlight_commands = true
+highlight_paths = true
+highlight_strings = true
+
+[plugins.auto-suggestions]
+enabled = true
+source = "history"
+max_suggestions = 5
+
+[plugins.directory-bookmarks]
+bookmark_file = "~/.config/flex-sh/bookmarks"
+default_bookmarks = {
+    "home" = "~",
+    "docs" = "~/Documents",
+    "downloads" = "~/Downloads",
+    "desktop" = "~/Desktop"
+}
+
+# ============================================================================
+# SECURITY SETTINGS
+# ============================================================================
+
+[security]
+# Restrict dangerous commands
+restrict_dangerous_commands = true
+
+# Commands that require confirmation
+dangerous_commands = [
+    "rm -rf",
+    "format",
+    "mkfs",
+    "dd",
+    "> /dev/",
+    "chmod 777"
+]
+
+# Enable command confirmation for destructive operations
+confirm_destructive = true
+
+# Disable history for commands containing these patterns
+sensitive_patterns = [
+    "password=",
+    "token=",
+    "secret=",
+    "api_key=",
+    "auth="
+]
+
+# Maximum command length to prevent buffer overflow attacks
+max_command_length = 8192
+
+# ============================================================================
+# ENVIRONMENT VARIABLES
+# ============================================================================
+
+[environment]
+# Additional environment variables to set
+FLEX_SH_VERSION = "0.1.0"
+EDITOR = "nano"
+PAGER = "less"
+BROWSER = "firefox"
+
+# PATH additions (prepended to existing PATH)
+path_additions = [
+    "~/.local/bin",
+    "~/.cargo/bin",
+    "/opt/local/bin"
+]
+
+# Variables to export to child processes
+export_vars = [
+    "FLEX_SH_VERSION",
+    "EDITOR",
+    "PAGER",
+    "BROWSER"
+]
