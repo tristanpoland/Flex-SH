@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Parser;
 use env_logger::Env;
-use log::{error, info};
+use log::{error, info, debug};
 
 mod cli;
 mod config;
@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
 
     let args = Cli::parse();
 
-    info!("Starting Flex-SH v{}", env!("CARGO_PKG_VERSION"));
+    debug!("Starting Flex-SH v{}", env!("CARGO_PKG_VERSION"));
 
     let mut shell = Shell::new(args.clone()).await?;
 

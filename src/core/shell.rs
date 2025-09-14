@@ -106,7 +106,7 @@ impl Shell {
         let executor = Executor::new();
         let current_dir = std::env::current_dir()?;
 
-        info!("Shell initialized with config: {:?}", config.get());
+        debug!("Shell initialized with config: {:?}", config.get());
 
         Ok(Self {
             config,
@@ -122,7 +122,7 @@ impl Shell {
     }
 
     pub async fn run(&mut self) -> Result<()> {
-        info!("Starting shell main loop");
+        debug!("Starting shell main loop");
 
         if let Err(e) = self.terminal.enter_raw_mode().await {
             warn!("Failed to enter raw mode: {}", e);
