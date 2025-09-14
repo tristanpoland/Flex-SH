@@ -16,6 +16,7 @@ impl BuiltinCommand for ClearCommand {
         _command: &ParsedCommand,
         _current_dir: &mut PathBuf,
         _background_processes: &mut HashMap<u32, Child>,
+        _parser: &mut crate::core::parser::Parser,
     ) -> Result<i32> {
         execute!(io::stdout(), Clear(ClearType::All))?;
         execute!(io::stdout(), crossterm::cursor::MoveTo(0, 0))?;

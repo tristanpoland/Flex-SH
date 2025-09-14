@@ -47,6 +47,15 @@ impl Parser {
         }
 
         let tokens = self.tokenize(input)?;
+        let mut tokens = tokens;
+        // Alias substitution: if first token is an alias, replace it
+        if !tokens.is_empty() {
+            if let Some(alias) = self.aliases.get(&tokens[0]) {
+                // Split alias value into tokens and replace the first token
+                let alias_tokens = self.tokenize(alias)?;
+                tokens.splice(0..1, alias_tokens);
+            }
+        }
         self.parse_tokens(tokens)
     }
 

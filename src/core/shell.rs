@@ -511,7 +511,7 @@ impl Shell {
                 let parsed_command = self.parser.parse(line)?;
                 debug!("Parsed command: {:?}", parsed_command);
 
-                self.exit_code = self.executor.execute(parsed_command, &mut self.current_dir).await?;
+                self.exit_code = self.executor.execute(parsed_command, &mut self.current_dir, &mut self.parser).await?;
 
                 if self.exit_code == 130 {
                     self.should_exit = true;
@@ -674,14 +674,14 @@ impl Shell {
     }
 
     pub async fn execute_command(&mut self, command: &str) -> Result<()> {
-        debug!("Executing single command: {}", command);
+    debug!("Executing single command: {}", command);
 
-        let parsed_command = self.parser.parse(command)?;
-        debug!("Parsed command: {:?}", parsed_command);
+    let parsed_command = self.parser.parse(command)?;
+    debug!("Parsed command: {:?}", parsed_command);
 
-        self.exit_code = self.executor.execute(parsed_command, &mut self.current_dir).await?;
+    self.exit_code = self.executor.execute(parsed_command, &mut self.current_dir, &mut self.parser).await?;
 
-        Ok(())
+    Ok(())
     }
 
     pub fn exit_code(&self) -> i32 {

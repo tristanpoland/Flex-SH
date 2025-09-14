@@ -14,6 +14,7 @@ impl BuiltinCommand for EchoCommand {
         command: &ParsedCommand,
         _current_dir: &mut PathBuf,
         _background_processes: &mut HashMap<u32, Child>,
+        _parser: &mut crate::core::parser::Parser,
     ) -> Result<i32> {
         let mut newline = true;
         let mut args = command.args.iter();

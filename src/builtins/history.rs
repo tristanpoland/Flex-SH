@@ -14,6 +14,7 @@ impl BuiltinCommand for HistoryCommand {
         command: &ParsedCommand,
         _current_dir: &mut PathBuf,
         _background_processes: &mut HashMap<u32, Child>,
+        _parser: &mut crate::core::parser::Parser,
     ) -> Result<i32> {
         // TODO: Integrate with actual history system
         if command.args.is_empty() {

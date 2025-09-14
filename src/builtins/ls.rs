@@ -16,6 +16,7 @@ impl BuiltinCommand for LsCommand {
         command: &ParsedCommand,
         current_dir: &mut PathBuf,
         _background_processes: &mut HashMap<u32, Child>,
+        _parser: &mut crate::core::parser::Parser,
     ) -> Result<i32> {
         let mut long_format = false;
         let mut show_hidden = false;

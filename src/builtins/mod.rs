@@ -23,6 +23,7 @@ pub trait BuiltinCommand: Send + Sync {
         command: &ParsedCommand,
         current_dir: &mut PathBuf,
         background_processes: &mut HashMap<u32, Child>,
+        parser: &mut crate::core::parser::Parser,
     ) -> Result<i32>;
 
     fn name(&self) -> &'static str;

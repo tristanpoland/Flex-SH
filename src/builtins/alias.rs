@@ -7,6 +7,7 @@ use tokio::process::Child;
 
 pub struct AliasCommand;
 
+
 #[async_trait::async_trait]
 impl BuiltinCommand for AliasCommand {
     async fn execute(
@@ -14,25 +15,34 @@ impl BuiltinCommand for AliasCommand {
         command: &ParsedCommand,
         _current_dir: &mut PathBuf,
         _background_processes: &mut HashMap<u32, Child>,
+        parser: &mut crate::core::parser::Parser,
     ) -> Result<i32> {
         if command.args.is_empty() {
-            // TODO: Get aliases from config and display them
-            println!("alias: no aliases defined");
+            let aliases = parser.list_aliases();
+            if aliases.is_empty() {
+                println!("alias: no aliases defined");
+            } else {
+                for (name, value) in aliases {
+                    println!("alias {}='{}'", name, value);
+                }
+            }
         } else {
             for arg in &command.args {
                 if let Some(eq_pos) = arg.find('=') {
                     let (name, value) = arg.split_at(eq_pos);
                     let value = &value[1..]; // Skip the '=' character
-
-                    // TODO: Store alias in config
-                    println!("alias {}='{}'", name, value);
+                    parser.set_alias(name.trim().to_string(), value.trim().to_string());
+                    println!("alias {}='{}'", name.trim(), value.trim());
                 } else {
-                    // TODO: Look up alias in config
-                    println!("alias: {}: not found", arg);
+                    let aliases = parser.list_aliases();
+                    if let Some(val) = aliases.get(arg) {
+                        println!("alias {}='{}'", arg, val);
+                    } else {
+                        println!("alias: {}: not found", arg);
+                    }
                 }
             }
         }
-
         Ok(0)
     }
 

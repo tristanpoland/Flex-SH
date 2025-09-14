@@ -15,6 +15,7 @@ impl BuiltinCommand for CdCommand {
         command: &ParsedCommand,
         current_dir: &mut PathBuf,
         _background_processes: &mut HashMap<u32, Child>,
+        _parser: &mut crate::core::parser::Parser,
     ) -> Result<i32> {
         let target_dir = if command.args.is_empty() {
             dirs::home_dir().ok_or_else(|| anyhow!("Could not find home directory"))?
