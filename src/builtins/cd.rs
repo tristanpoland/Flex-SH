@@ -27,28 +27,15 @@ impl BuiltinCommand for CdCommand {
                     .unwrap_or_else(|_| current_dir.clone())
             } else {
                 // Expand tilde and normalize the path
-                let mut expanded_path = expand_tilde(path);
-
-                // Strip Windows extended path prefix if present
-                #[cfg(windows)]
-                {
-                    use std::path::Path;
-                    let s = expanded_path.to_string_lossy();
-                    if s.starts_with(r"\\?\") {
-                        expanded_path = Path::new(&s[4..]).to_path_buf();
-                    }
-                }
-
-                // Normalize path (resolve .. and .)
-                let normalized_path = expanded_path;
-
-                if normalized_path.is_absolute() {
-                    normalized_path.canonicalize().unwrap_or(normalized_path)
+                let expanded_path = expand_tilde(path);
+                let mut target = if expanded_path.is_absolute() {
+                    expanded_path
                 } else {
-                    let mut target = current_dir.clone();
-                    target.push(&normalized_path);
-                    target.canonicalize().unwrap_or(target)
-                }
+                    let mut t = current_dir.clone();
+                    t.push(&expanded_path);
+                    t
+                };
+                target
             }
         };
 

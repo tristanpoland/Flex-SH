@@ -95,15 +95,25 @@ impl BuiltinCommand for LsCommand {
 fn list_directory(path: &Path, long_format: bool, show_hidden: bool, human_readable: bool) -> Result<()> {
     let mut entries = Vec::new();
 
-    for entry in fs::read_dir(path)? {
-        let entry = entry?;
-        let file_name = entry.file_name().to_string_lossy().to_string();
+    let dir_iter = match fs::read_dir(path) {
+        Ok(iter) => iter,
+        Err(e) => return Err(e.into()),
+    };
 
-        if !show_hidden && file_name.starts_with('.') {
-            continue;
+    for entry_result in dir_iter {
+        match entry_result {
+            Ok(entry) => {
+                let file_name = entry.file_name().to_string_lossy().to_string();
+                if !show_hidden && file_name.starts_with('.') {
+                    continue;
+                }
+                entries.push(entry);
+            }
+            Err(e) => {
+                eprintln!("ls: warning: could not read entry: {}", e);
+                continue;
+            }
         }
-
-        entries.push(entry);
     }
 
     entries.sort_by(|a, b| {
@@ -151,7 +161,13 @@ fn print_long_format_aligned(entries: &[fs::DirEntry], human_readable: bool) -> 
     let mut max_user_width = 0;
 
     for entry in entries {
-        let metadata = entry.metadata()?;
+        let metadata = match entry.metadata() {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("ls: warning: could not read metadata for {}: {}", entry.file_name().to_string_lossy(), e);
+                continue;
+            }
+        };
         let file_name = entry.file_name().to_string_lossy().to_string();
 
         let file_type = if metadata.is_dir() {
@@ -197,7 +213,13 @@ fn print_long_format_aligned(entries: &[fs::DirEntry], human_readable: bool) -> 
             metadata.len().to_string()
         };
 
-        let modified = metadata.modified()?;
+        let modified = match metadata.modified() {
+            Ok(m) => m,
+            Err(e) => {
+                eprintln!("ls: warning: could not read modified time for {}: {}", file_name, e);
+                continue;
+            }
+        };
         let datetime: chrono::DateTime<chrono::Local> = modified.into();
         let time_str = datetime.format("%b %d %H:%M").to_string();
 

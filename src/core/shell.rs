@@ -439,7 +439,7 @@ impl Shell {
         let history = History::new(config.get().history.clone())?;
         let parser = Parser::new();
         let executor = Executor::new();
-        let current_dir = std::env::current_dir()?;
+    let current_dir = crate::utils::path::strip_windows_prefix(&std::env::current_dir()?);
 
         debug!("Shell initialized with config: {:?}", config.get());
 
@@ -484,7 +484,7 @@ impl Shell {
     }
 
     async fn run_interactive(&mut self) -> Result<()> {
-        let prompt = self.build_prompt()?;
+    let prompt = self.build_prompt()?;
 
         // Store the original prompt for highlighting
         let colored_prompt = if let Some(helper) = self.editor.helper_mut() {
@@ -548,18 +548,20 @@ impl Shell {
 
         // Get current working directory (home-relative)
         let cwd_home = if let Some(home) = dirs::home_dir() {
-            if self.current_dir.starts_with(&home) {
-                let relative = self.current_dir.strip_prefix(&home).unwrap_or(&self.current_dir);
-                if relative == Path::new("") {
+            let current_dir = crate::utils::path::strip_windows_prefix(&self.current_dir);
+            let home = crate::utils::path::strip_windows_prefix(&home);
+            if current_dir.starts_with(&home) {
+                let relative = current_dir.strip_prefix(&home).unwrap_or(&current_dir);
+                if relative == std::path::Path::new("") {
                     "~".to_string()
                 } else {
                     format!("~/{}", relative.to_string_lossy())
                 }
             } else {
-                self.current_dir.to_string_lossy().to_string()
+                current_dir.to_string_lossy().to_string()
             }
         } else {
-            self.current_dir.to_string_lossy().to_string()
+            crate::utils::path::strip_windows_prefix(&self.current_dir).to_string_lossy().to_string()
         };
 
         // Get just directory name

@@ -1,9 +1,22 @@
+/// Strips the Windows extended path prefix (\\?\) if present.
+pub fn strip_windows_prefix(path: &std::path::PathBuf) -> std::path::PathBuf {
+    #[cfg(windows)]
+    {
+        let s = path.to_string_lossy();
+        if s.starts_with(r"\\?\") {
+            use std::path::Path;
+            return Path::new(&s[4..]).to_path_buf();
+        }
+    }
+    path.clone()
+}
 use std::path::{Path, PathBuf};
 
 pub fn expand_tilde<P: AsRef<Path>>(path: P) -> PathBuf {
     let path = path.as_ref();
     if path.starts_with("~") {
         if let Some(home) = dirs::home_dir() {
+            let home = strip_windows_prefix(&home);
             if path == Path::new("~") {
                 return home;
             } else if let Ok(relative) = path.strip_prefix("~/") {
