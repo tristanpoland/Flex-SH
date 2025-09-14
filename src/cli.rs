@@ -10,7 +10,7 @@ use std::path::PathBuf;
 )]
 pub struct Cli {
     /// Configuration file path
-    #[arg(short, long)]
+    #[arg(long)]
     pub config: Option<PathBuf>,
 
     /// Execute a single command and exit
