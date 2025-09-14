@@ -9,6 +9,7 @@ use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use ctrlc;
 use tokio::process::{Child, Command as TokioCommand};
 use tokio::fs::File;
+use tokio::signal;
 
 pub struct Executor {
 	background_processes: HashMap<u32, Child>,
@@ -18,14 +19,6 @@ pub struct Executor {
 impl Executor {
 	pub fn new() -> Self {
 		let interrupt_flag = Arc::new(AtomicBool::new(false));
-		let flag_clone = interrupt_flag.clone();
-		ctrlc::set_handler(move || {
-			if !flag_clone.load(Ordering::SeqCst) {
-				flag_clone.store(true, Ordering::SeqCst);
-			} else {
-				std::process::exit(130);
-			}
-		}).expect("Error setting Ctrl-C handler");
 		Self {
 			background_processes: HashMap::new(),
 			interrupt_flag,
@@ -92,10 +85,6 @@ impl Executor {
 		current_dir: &mut PathBuf,
 		parser: &mut crate::core::parser::Parser,
 	) -> Result<i32> {
-		if self.interrupt_flag.load(Ordering::SeqCst) {
-			self.interrupt_flag.store(false, Ordering::SeqCst);
-			return Ok(130);
-		}
 		builtin.execute(command, current_dir, &mut self.background_processes, parser).await
 	}
 
@@ -159,17 +148,12 @@ impl Executor {
 			return Ok(0);
 		}
 		let mut child = cmd.spawn()?;
-		let interrupt_flag = self.interrupt_flag.clone();
 		let child_id = child.id().unwrap_or(0);
 		let res = tokio::select! {
 			status = child.wait() => {
 				status?.code().unwrap_or(-1)
 			}
-			_ = async {
-				while !interrupt_flag.load(Ordering::SeqCst) {
-					tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-				}
-			} => {
+			_ = signal::ctrl_c() => {
 				#[cfg(unix)] {
 					use nix::sys::signal::{kill, Signal};
 					use nix::unistd::Pid;
@@ -178,7 +162,7 @@ impl Executor {
 				#[cfg(windows)] {
 					let _ = child.kill().await;
 				}
-				interrupt_flag.store(false, Ordering::SeqCst);
+				let _ = child.wait().await;
 				130
 			}
 		};

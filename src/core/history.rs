@@ -14,7 +14,13 @@ pub struct History {
 impl History {
     pub fn new(config: HistoryConfig) -> Result<Self> {
         let file_path = config.file_path.clone()
-            .or_else(|| dirs::data_dir().map(|d| d.join("flex-sh").join("history")));
+            .or_else(|| {
+                // Try multiple fallback locations to ensure we get a writable user directory
+                dirs::data_dir()
+                    .map(|d| d.join("flex-sh").join("history"))
+                    .or_else(|| dirs::home_dir().map(|h| h.join(".flex-sh").join("history")))
+                    .or_else(|| dirs::config_dir().map(|c| c.join("flex-sh").join("history")))
+            });
 
         let mut history = Self {
             entries: VecDeque::with_capacity(config.max_entries),
@@ -22,7 +28,10 @@ impl History {
             file_path,
         };
 
-        history.load_from_file()?;
+        if let Err(e) = history.load_from_file() {
+            eprintln!("Warning: Failed to load history file: {}", e);
+            // Continue with empty history rather than failing
+        }
         Ok(history)
     }
 
@@ -91,21 +100,36 @@ impl History {
 
     fn save_to_file(&self) -> Result<()> {
         if let Some(ref path) = self.file_path {
+            // Safely handle directory creation and file writing - don't fail the shell if history can't be saved
             if let Some(parent) = path.parent() {
-                std::fs::create_dir_all(parent)?;
+                if let Err(e) = std::fs::create_dir_all(parent) {
+                    eprintln!("Warning: Failed to create history directory {}: {}", parent.display(), e);
+                    return Ok(()); // Don't fail the command if history can't be saved
+                }
             }
 
-            let mut file = OpenOptions::new()
+            let mut file = match OpenOptions::new()
                 .create(true)
                 .write(true)
                 .truncate(true)
-                .open(path)?;
+                .open(path) {
+                Ok(f) => f,
+                Err(e) => {
+                    eprintln!("Warning: Failed to open history file {}: {}", path.display(), e);
+                    return Ok(()); // Don't fail the command if history can't be saved
+                }
+            };
 
             for entry in &self.entries {
-                writeln!(file, "{}", entry)?;
+                if let Err(e) = writeln!(file, "{}", entry) {
+                    eprintln!("Warning: Failed to write to history file: {}", e);
+                    return Ok(()); // Don't fail the command if history can't be saved
+                }
             }
 
-            file.flush()?;
+            if let Err(e) = file.flush() {
+                eprintln!("Warning: Failed to flush history file: {}", e);
+            }
         }
         Ok(())
     }

@@ -23,7 +23,9 @@
       "Bash(./target/release/flex-sh.exe -c \"echo Config path test\")",
       "Read(//c/Users/redst/.config/flex-sh/**)",
       "Bash(./target/debug/flex-sh)",
-      "Bash(./target/debug/flex-sh:*)"
+      "Bash(./target/debug/flex-sh:*)",
+      "Bash(./target/release/flex-sh.exe -c \"pwd\")",
+      "Bash(dir C:)"
     ],
     "deny": [],
     "ask": []

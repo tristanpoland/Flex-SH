@@ -49,10 +49,34 @@ impl BuiltinCommand for CdCommand {
             return Ok(1);
         }
 
+        // Note: We don't test read_dir here because some directories allow navigation
+        // but not listing. The actual directory change operation will tell us if access is denied.
+
         std::env::set_var("OLDPWD", current_dir.to_string_lossy().to_string());
-        *current_dir = target_dir;
-        std::env::set_current_dir(&current_dir)?;
-        std::env::set_var("PWD", current_dir.to_string_lossy().to_string());
+
+        // Canonicalize the target directory to resolve ./ and ../ properly
+        let canonical_dir = if let Ok(canonical) = target_dir.canonicalize() {
+            canonical
+        } else {
+            target_dir
+        };
+
+        // Try to actually change directory before updating shell state
+        if let Err(e) = std::env::set_current_dir(&canonical_dir) {
+            match e.kind() {
+                std::io::ErrorKind::PermissionDenied => {
+                    eprintln!("cd: permission denied: {}", canonical_dir.display());
+                }
+                _ => {
+                    eprintln!("cd: {}: {}", canonical_dir.display(), e);
+                }
+            }
+            return Ok(1);
+        }
+
+        // Update shell state only if directory change succeeded
+        *current_dir = canonical_dir.clone();
+        std::env::set_var("PWD", canonical_dir.to_string_lossy().to_string());
 
         Ok(0)
     }

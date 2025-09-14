@@ -439,7 +439,14 @@ impl Shell {
         let history = History::new(config.get().history.clone())?;
         let parser = Parser::new();
         let executor = Executor::new();
-    let current_dir = crate::utils::path::strip_windows_prefix(&std::env::current_dir()?);
+
+        // Get current directory and canonicalize it
+        let raw_dir = std::env::current_dir()?;
+        let current_dir = if let Ok(canonical) = raw_dir.canonicalize() {
+            crate::utils::path::strip_windows_prefix(&canonical)
+        } else {
+            crate::utils::path::strip_windows_prefix(&raw_dir)
+        };
 
         debug!("Shell initialized with config: {:?}", config.get());
 
@@ -513,6 +520,16 @@ impl Shell {
 
                 self.exit_code = self.executor.execute(parsed_command, &mut self.current_dir, &mut self.parser).await?;
 
+                // Sync shell's current_dir with actual working directory after command execution
+                if let Ok(real_cwd) = std::env::current_dir() {
+                    let canonical_real_cwd = if let Ok(canonical) = real_cwd.canonicalize() {
+                        crate::utils::path::strip_windows_prefix(&canonical)
+                    } else {
+                        crate::utils::path::strip_windows_prefix(&real_cwd)
+                    };
+                    self.current_dir = canonical_real_cwd;
+                }
+
                 if self.exit_code == 130 {
                     self.should_exit = true;
                 }
@@ -546,11 +563,14 @@ impl Shell {
             .to_string_lossy()
             .to_string();
 
-        // Get current working directory (home-relative)
-        let cwd_home = if let Some(home) = dirs::home_dir() {
+        // Get current working directory (home-relative), handle inaccessible directories
+        let (cwd_home, current_dir_accessible) = if let Some(home) = dirs::home_dir() {
+            // Test if current directory is accessible
+            let accessible = std::fs::read_dir(&self.current_dir).is_ok();
             let current_dir = crate::utils::path::strip_windows_prefix(&self.current_dir);
             let home = crate::utils::path::strip_windows_prefix(&home);
-            if current_dir.starts_with(&home) {
+
+            let cwd_display = if current_dir.starts_with(&home) {
                 let relative = current_dir.strip_prefix(&home).unwrap_or(&current_dir);
                 if relative == std::path::Path::new("") {
                     "~".to_string()
@@ -559,9 +579,19 @@ impl Shell {
                 }
             } else {
                 current_dir.to_string_lossy().to_string()
-            }
+            };
+            (cwd_display, accessible)
         } else {
-            crate::utils::path::strip_windows_prefix(&self.current_dir).to_string_lossy().to_string()
+            let accessible = std::fs::read_dir(&self.current_dir).is_ok();
+            let cwd_display = crate::utils::path::strip_windows_prefix(&self.current_dir).to_string_lossy().to_string();
+            (cwd_display, accessible)
+        };
+
+        // Add warning indicator for inaccessible directories
+        let cwd_home = if !current_dir_accessible {
+            format!("{}!", cwd_home)
+        } else {
+            cwd_home
         };
 
         // Get just directory name
