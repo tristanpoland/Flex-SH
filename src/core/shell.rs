@@ -512,13 +512,13 @@ impl Shell {
         // Get current time
         let time = chrono::Local::now().format("%H:%M:%S").to_string();
 
-        // Replace all variables (support both {host} and {hostname})
-        prompt = prompt.replace("{user}", &user);
-        prompt = prompt.replace("{host}", &hostname);
-        prompt = prompt.replace("{hostname}", &hostname);
-        prompt = prompt.replace("{cwd}", &cwd_home);
-        prompt = prompt.replace("{cwd_name}", &cwd_name);
-        prompt = prompt.replace("{time}", &time);
+        // Replace all variables with colored versions
+        prompt = prompt.replace("{user}", &user.bright_green().to_string());
+        prompt = prompt.replace("{host}", &hostname.bright_cyan().to_string());
+        prompt = prompt.replace("{hostname}", &hostname.bright_cyan().to_string());
+        prompt = prompt.replace("{cwd}", &cwd_home.bright_blue().to_string());
+        prompt = prompt.replace("{cwd_name}", &cwd_name.bright_blue().to_string());
+        prompt = prompt.replace("{time}", &time.bright_yellow().to_string());
 
         // Add exit code if enabled and non-zero
         if config.prompt.show_exit_code && self.exit_code != 0 {

@@ -112,9 +112,7 @@ fn list_directory(path: &Path, long_format: bool, show_hidden: bool, human_reada
     });
 
     if long_format {
-        for entry in entries {
-            print_long_format(&entry, human_readable)?;
-        }
+        print_long_format_aligned(&entries, human_readable)?;
     } else {
         let names: Vec<String> = entries
             .iter()
@@ -142,77 +140,118 @@ fn list_directory(path: &Path, long_format: bool, show_hidden: bool, human_reada
     Ok(())
 }
 
-fn print_long_format(entry: &fs::DirEntry, human_readable: bool) -> Result<()> {
-    let metadata = entry.metadata()?;
-    let file_name = entry.file_name().to_string_lossy().to_string();
+fn print_long_format_aligned(entries: &[fs::DirEntry], human_readable: bool) -> Result<()> {
+    if entries.is_empty() {
+        return Ok(());
+    }
 
-    let file_type = if metadata.is_dir() {
-        'd'
-    } else if metadata.is_file() {
-        '-'
-    } else {
-        'l'
-    };
+    let mut formatted_entries = Vec::new();
+    let mut max_size_width = 0;
+    let mut max_user_width = 0;
 
-    #[cfg(unix)]
-    let permissions = {
-        use std::os::unix::fs::PermissionsExt;
-        let mode = metadata.permissions().mode();
-        format!(
-            "{}{}{}{}{}{}{}{}{}",
-            if mode & 0o400 != 0 { 'r' } else { '-' },
-            if mode & 0o200 != 0 { 'w' } else { '-' },
-            if mode & 0o100 != 0 { 'x' } else { '-' },
-            if mode & 0o040 != 0 { 'r' } else { '-' },
-            if mode & 0o020 != 0 { 'w' } else { '-' },
-            if mode & 0o010 != 0 { 'x' } else { '-' },
-            if mode & 0o004 != 0 { 'r' } else { '-' },
-            if mode & 0o002 != 0 { 'w' } else { '-' },
-            if mode & 0o001 != 0 { 'x' } else { '-' }
-        )
-    };
+    for entry in entries {
+        let metadata = entry.metadata()?;
+        let file_name = entry.file_name().to_string_lossy().to_string();
 
-    #[cfg(windows)]
-    let permissions = {
-        let readonly = metadata.permissions().readonly();
-        format!(
-            "{}{}{}",
-            if !readonly { "rw-" } else { "r--" },
-            if !readonly { "rw-" } else { "r--" },
-            if !readonly { "rw-" } else { "r--" }
-        )
-    };
+        let file_type = if metadata.is_dir() {
+            'd'
+        } else if metadata.is_file() {
+            '-'
+        } else {
+            'l'
+        };
 
-    let size = if human_readable {
-        format_human_readable(metadata.len())
-    } else {
-        format!("{:>8}", metadata.len())
-    };
+        #[cfg(unix)]
+        let permissions = {
+            use std::os::unix::fs::PermissionsExt;
+            let mode = metadata.permissions().mode();
+            format!(
+                "{}{}{}{}{}{}{}{}{}",
+                if mode & 0o400 != 0 { 'r' } else { '-' },
+                if mode & 0o200 != 0 { 'w' } else { '-' },
+                if mode & 0o100 != 0 { 'x' } else { '-' },
+                if mode & 0o040 != 0 { 'r' } else { '-' },
+                if mode & 0o020 != 0 { 'w' } else { '-' },
+                if mode & 0o010 != 0 { 'x' } else { '-' },
+                if mode & 0o004 != 0 { 'r' } else { '-' },
+                if mode & 0o002 != 0 { 'w' } else { '-' },
+                if mode & 0o001 != 0 { 'x' } else { '-' }
+            )
+        };
 
-    let modified = metadata.modified()?;
-    let datetime: chrono::DateTime<chrono::Local> = modified.into();
-    let time_str = datetime.format("%b %d %H:%M").to_string();
+        #[cfg(windows)]
+        let permissions = {
+            let readonly = metadata.permissions().readonly();
+            format!(
+                "{}{}{}",
+                if !readonly { "rw-" } else { "r--" },
+                if !readonly { "rw-" } else { "r--" },
+                if !readonly { "rw-" } else { "r--" }
+            )
+        };
 
-    let colored_name = if metadata.is_dir() {
-        file_name.bright_blue().to_string()
-    } else if is_executable(&entry.path()) {
-        file_name.bright_green().to_string()
-    } else {
-        file_name
-    };
+        let size_str = if human_readable {
+            format_human_readable(metadata.len())
+        } else {
+            metadata.len().to_string()
+        };
 
-    println!(
-        "{}{} {:>3} {} {} {}",
-        file_type,
-        permissions,
-        1, // link count (simplified)
-        size,
-        time_str,
-        colored_name
-    );
+        let modified = metadata.modified()?;
+        let datetime: chrono::DateTime<chrono::Local> = modified.into();
+        let time_str = datetime.format("%b %d %H:%M").to_string();
+
+        let colored_name = if metadata.is_dir() {
+            file_name.bright_blue().to_string()
+        } else if is_executable(&entry.path()) {
+            file_name.bright_green().to_string()
+        } else {
+            file_name.clone()
+        };
+
+        let user = get_user_name(&metadata);
+        max_size_width = max_size_width.max(size_str.len());
+        max_user_width = max_user_width.max(user.len());
+
+        formatted_entries.push((
+            file_type,
+            permissions,
+            1, // link count (simplified)
+            user,
+            size_str,
+            time_str,
+            colored_name,
+            file_name.len(), // uncolored length for wrapping logic
+        ));
+    }
+
+    for (file_type, permissions, links, user, size, time, colored_name, name_len) in formatted_entries {
+        let prefix = format!(
+            "{}{} {:>3} {:width1$} {:>width2$} {} ",
+            file_type,
+            permissions,
+            links,
+            user,
+            size,
+            time,
+            width1 = max_user_width,
+            width2 = max_size_width,
+        );
+
+        if name_len > 60 {
+            println!("{}", prefix);
+            println!("{:indent$}{}", "", colored_name, indent = prefix.len());
+        } else {
+            println!("{}{}", prefix, colored_name);
+        }
+    }
 
     Ok(())
 }
+
+fn get_user_name(_metadata: &fs::Metadata) -> String {
+    std::env::var("USERNAME").or_else(|_| std::env::var("USER")).unwrap_or_else(|_| "user".to_string())
+}
+
 
 fn format_human_readable(size: u64) -> String {
     const UNITS: &[&str] = &["B", "K", "M", "G", "T"];
@@ -225,9 +264,9 @@ fn format_human_readable(size: u64) -> String {
     }
 
     if unit_index == 0 {
-        format!("{:>5}B", size)
+        format!("{:>6}", size)
     } else {
-        format!("{:>4.1}{}", size_f, UNITS[unit_index])
+        format!("{:>5.1}{}", size_f, UNITS[unit_index])
     }
 }
 
