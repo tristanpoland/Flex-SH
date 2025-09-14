@@ -3,7 +3,7 @@ use crate::builtins::{self, BuiltinCommand};
 use anyhow::Result;
 use log::debug;
 use std::collections::HashMap;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Stdio;
 use tokio::process::{Child, Command as TokioCommand};
 use tokio::fs::File;
@@ -17,6 +17,72 @@ impl Executor {
         Self {
             background_processes: HashMap::new(),
         }
+    }
+
+    // Resolve program name to full path by searching PATH
+    fn resolve_program_path(&self, program_name: &str) -> Option<PathBuf> {
+        debug!("Resolving program path for: '{}'", program_name);
+
+        // If it already contains a path separator, don't search PATH
+        if program_name.contains('/') || program_name.contains('\\') {
+            let path = Path::new(program_name);
+            return if path.exists() { Some(path.to_path_buf()) } else { None };
+        }
+
+        // Search PATH for the executable
+        if let Ok(path_var) = std::env::var("PATH") {
+            #[cfg(windows)]
+            let path_separator = ";";
+            #[cfg(not(windows))]
+            let path_separator = ":";
+
+            #[cfg(windows)]
+            let executable_extensions = vec!["exe", "bat", "cmd", "com"];
+
+            for path_dir in path_var.split(path_separator) {
+                if path_dir.is_empty() {
+                    continue;
+                }
+
+                let dir_path = Path::new(path_dir);
+                if !dir_path.exists() || !dir_path.is_dir() {
+                    continue;
+                }
+
+                #[cfg(windows)]
+                {
+                    // On Windows, prefer .exe files first, then try other extensions
+                    let exe_candidate = dir_path.join(format!("{}.exe", program_name));
+                    if exe_candidate.exists() && exe_candidate.is_file() {
+                        debug!("Found .exe program at: {:?}", exe_candidate);
+                        return Some(exe_candidate);
+                    }
+
+                    // Then try other executable extensions
+                    for ext in &executable_extensions {
+                        if ext == &"exe" { continue; } // Already tried
+                        let candidate_with_ext = dir_path.join(format!("{}.{}", program_name, ext));
+                        if candidate_with_ext.exists() && candidate_with_ext.is_file() {
+                            debug!("Found program at: {:?}", candidate_with_ext);
+                            return Some(candidate_with_ext);
+                        }
+                    }
+                }
+
+                #[cfg(not(windows))]
+                {
+                    // Try without extension on Unix systems
+                    let candidate = dir_path.join(program_name);
+                    if candidate.exists() && candidate.is_file() {
+                        debug!("Found program at: {:?}", candidate);
+                        return Some(candidate);
+                    }
+                }
+            }
+        }
+
+        debug!("Program '{}' not found in PATH", program_name);
+        None
     }
 
     pub async fn execute(&mut self, command: ParsedCommand, current_dir: &mut PathBuf) -> Result<i32> {
@@ -44,8 +110,46 @@ impl Executor {
     }
 
     async fn execute_single_command(&mut self, command: ParsedCommand, current_dir: &PathBuf) -> Result<i32> {
-        let mut cmd = TokioCommand::new(&command.program);
-        cmd.args(&command.args);
+        // Resolve the program path
+        let program_path = if let Some(resolved_path) = self.resolve_program_path(&command.program) {
+            resolved_path
+        } else {
+            return Err(anyhow::anyhow!("program not found: {}", command.program));
+        };
+
+        debug!("Executing program at: {:?}", program_path);
+
+        // On Windows, handle batch files and cmd files by running them through cmd.exe
+        let mut cmd = {
+            #[cfg(windows)]
+            {
+                if let Some(ext) = program_path.extension() {
+                    let ext = ext.to_string_lossy().to_lowercase();
+                    if ext == "bat" || ext == "cmd" {
+                        let mut cmd = TokioCommand::new("cmd");
+                        cmd.arg("/c");
+                        cmd.arg(&program_path);
+                        cmd.args(&command.args);
+                        cmd
+                    } else {
+                        let mut cmd = TokioCommand::new(&program_path);
+                        cmd.args(&command.args);
+                        cmd
+                    }
+                } else {
+                    let mut cmd = TokioCommand::new(&program_path);
+                    cmd.args(&command.args);
+                    cmd
+                }
+            }
+            #[cfg(not(windows))]
+            {
+                let mut cmd = TokioCommand::new(&program_path);
+                cmd.args(&command.args);
+                cmd
+            }
+        };
+
         cmd.current_dir(current_dir);
 
         for (key, value) in &command.environment {
@@ -94,17 +198,55 @@ impl Executor {
         let mut processes = Vec::new();
         let mut previous_stdout = None;
 
-        for (i, cmd) in commands.iter().enumerate() {
-            let mut tokio_cmd = TokioCommand::new(&cmd.program);
-            tokio_cmd.args(&cmd.args);
+        for (i, pipeline_cmd) in commands.iter().enumerate() {
+            // Resolve the program path for each command in the pipeline
+            let program_path = if let Some(resolved_path) = self.resolve_program_path(&pipeline_cmd.program) {
+                resolved_path
+            } else {
+                return Err(anyhow::anyhow!("program not found: {}", pipeline_cmd.program));
+            };
+
+            debug!("Pipeline command {} executing at: {:?}", i, program_path);
+
+            // On Windows, handle batch files and cmd files by running them through cmd.exe
+            let mut tokio_cmd = {
+                #[cfg(windows)]
+                {
+                    if let Some(ext) = program_path.extension() {
+                        let ext = ext.to_string_lossy().to_lowercase();
+                        if ext == "bat" || ext == "cmd" {
+                            let mut cmd = TokioCommand::new("cmd");
+                            cmd.arg("/c");
+                            cmd.arg(&program_path);
+                            cmd.args(&pipeline_cmd.args);
+                            cmd
+                        } else {
+                            let mut cmd = TokioCommand::new(&program_path);
+                            cmd.args(&pipeline_cmd.args);
+                            cmd
+                        }
+                    } else {
+                        let mut cmd = TokioCommand::new(&program_path);
+                        cmd.args(&pipeline_cmd.args);
+                        cmd
+                    }
+                }
+                #[cfg(not(windows))]
+                {
+                    let mut cmd = TokioCommand::new(&program_path);
+                    cmd.args(&pipeline_cmd.args);
+                    cmd
+                }
+            };
+
             tokio_cmd.current_dir(current_dir);
 
-            for (key, value) in &cmd.environment {
+            for (key, value) in &pipeline_cmd.environment {
                 tokio_cmd.env(key, value);
             }
 
             if i == 0 {
-                if let Some(input_file) = &cmd.input_redirect {
+                if let Some(input_file) = &pipeline_cmd.input_redirect {
                     let file = File::open(input_file).await?;
                     tokio_cmd.stdin(Stdio::from(file.into_std().await));
                 } else {
@@ -115,10 +257,10 @@ impl Executor {
             }
 
             if i == commands.len() - 1 {
-                if let Some(output_file) = &cmd.output_redirect {
+                if let Some(output_file) = &pipeline_cmd.output_redirect {
                     let file = File::create(output_file).await?;
                     tokio_cmd.stdout(Stdio::from(file.into_std().await));
-                } else if let Some(append_file) = &cmd.append_redirect {
+                } else if let Some(append_file) = &pipeline_cmd.append_redirect {
                     let file = tokio::fs::OpenOptions::new()
                         .create(true)
                         .append(true)

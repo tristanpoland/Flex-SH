@@ -3,6 +3,7 @@ pub mod settings;
 pub use settings::Config;
 
 use anyhow::Result;
+use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -95,11 +96,23 @@ impl ShellConfig {
 
         let default_config_paths = [
             dirs::config_dir().map(|d| d.join("flex-sh").join("config.toml")),
+            dirs::home_dir().map(|d| d.join(".config").join("flex-sh").join("config.toml")),
+            Some(PathBuf::from("flex-sh-config.toml")),  // Current directory
+            Some(PathBuf::from("config.toml")),
             Some(PathBuf::from(".flexsh.toml")),
         ];
 
+        debug!("Looking for config files in the following locations:");
+        for (i, path) in default_config_paths.iter().enumerate() {
+            if let Some(path) = path {
+                debug!("  {}: {:?}", i + 1, path);
+            }
+        }
+
         for config_path in default_config_paths.iter().flatten() {
+            debug!("Checking config path: {:?}", config_path);
             if config_path.exists() {
+                debug!("Found config at: {:?}", config_path);
                 let content = std::fs::read_to_string(config_path)?;
                 let config: ShellConfig = toml::from_str(&content)?;
                 return Ok(config);

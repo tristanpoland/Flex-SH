@@ -477,29 +477,56 @@ impl Shell {
         let config = self.config.get();
         let mut prompt = config.prompt.format.clone();
 
+        // Get user name
         let user = std::env::var("USER")
             .or_else(|_| std::env::var("USERNAME"))
             .unwrap_or_else(|_| "user".to_string());
 
-        let host = gethostname::gethostname()
+        // Get hostname
+        let hostname = gethostname::gethostname()
             .to_string_lossy()
             .to_string();
 
-        let cwd = self.current_dir
+        // Get current working directory (home-relative)
+        let cwd_home = if let Some(home) = dirs::home_dir() {
+            if self.current_dir.starts_with(&home) {
+                let relative = self.current_dir.strip_prefix(&home).unwrap_or(&self.current_dir);
+                if relative == Path::new("") {
+                    "~".to_string()
+                } else {
+                    format!("~/{}", relative.to_string_lossy())
+                }
+            } else {
+                self.current_dir.to_string_lossy().to_string()
+            }
+        } else {
+            self.current_dir.to_string_lossy().to_string()
+        };
+
+        // Get just directory name
+        let cwd_name = self.current_dir
             .file_name()
             .map(|n| n.to_string_lossy().to_string())
             .unwrap_or_else(|| "/".to_string());
 
-        prompt = prompt.replace("{user}", &user);
-        prompt = prompt.replace("{host}", &host);
-        prompt = prompt.replace("{cwd}", &cwd);
+        // Get current time
+        let time = chrono::Local::now().format("%H:%M:%S").to_string();
 
+        // Replace all variables (support both {host} and {hostname})
+        prompt = prompt.replace("{user}", &user);
+        prompt = prompt.replace("{host}", &hostname);
+        prompt = prompt.replace("{hostname}", &hostname);
+        prompt = prompt.replace("{cwd}", &cwd_home);
+        prompt = prompt.replace("{cwd_name}", &cwd_name);
+        prompt = prompt.replace("{time}", &time);
+
+        // Add exit code if enabled and non-zero
         if config.prompt.show_exit_code && self.exit_code != 0 {
             prompt = format!("[{}] {}", self.exit_code, prompt);
         }
 
-        if config.prompt.show_time {
-            let time = chrono::Local::now().format("%H:%M:%S");
+        // Add time if enabled (but not if already in prompt format string)
+        if config.prompt.show_time && !config.prompt.format.contains("{time}") {
             prompt = format!("[{}] {}", time, prompt);
         }
 

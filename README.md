@@ -1,313 +1,415 @@
-# Flex-SH
+# 🚀 Flex-SH - A Modern, Feature-Rich System Shell
 
-A high-performance, modern system shell with rich features and cross-platform support.
+[![Rust](https://img.shields.io/badge/built_with-Rust-dea584.svg)](https://www.rust-lang.org/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Cross Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-green.svg)]()
 
-## Features
+**Flex-SH** is a modern, highly customizable system shell built in Rust that combines the best features of traditional shells with contemporary usability improvements. Designed for developers, system administrators, and power users who demand both performance and aesthetics.
 
-### 🚀 Performance
-- Written in Rust for maximum performance and memory safety
-- Async/await architecture for non-blocking operations
-- Efficient command parsing and execution
+---
 
-### 🎨 Rich Interface
-- Syntax highlighting and colored output
-- Multiple color schemes (default, dark, light, monokai)
-- Cross-platform terminal support
-- Advanced prompt customization
+## ✨ Features
 
-### 🔧 Built-in Commands
-- **cd** - Change directory with OLDPWD support
-- **echo** - Display text with variable expansion
-- **ls** - List files with color coding and long format
-- **pwd** - Print working directory
-- **clear** - Clear terminal screen
-- **env** - Environment variable management
-- **which** - Locate commands in PATH
-- **alias** - Command aliases (planned)
-- **history** - Command history (planned)
-- **help** - Built-in help system
-- **exit** - Exit the shell
+### 🎨 **Beautiful & Customizable Interface**
+- **Rich Unicode Prompts** - Gorgeous, informative prompts with full emoji support
+- **Multiple Color Schemes** - Dark, light, monokai, and custom color themes
+- **Smart Prompt Variables** - Dynamic user, hostname, directory, time, and git status
+- **Responsive Design** - Adapts to terminal size and capabilities
 
-### 💡 Smart Features
-- Command history with persistent storage
-- Tab completion for commands and files
-- Glob pattern expansion
-- Environment variable expansion
-- Input/output redirection
-- Pipeline support
-- Background processes
-- Configuration system
+### ⚡ **High Performance**
+- **Blazing Fast** - Written in Rust for maximum performance and memory safety
+- **Smart Tab Completion** - Intelligent completion for commands, paths, and arguments
+- **Command Caching** - Frequently used commands are cached for instant execution
+- **Async Architecture** - Non-blocking command execution with pipeline support
 
-## Installation
+### 🔧 **Developer-Friendly**
+- **Advanced History** - Fuzzy search, deduplication, and smart filtering
+- **Git Integration** - Branch status, repository awareness, and shortcuts
+- **Extensive Aliases** - Pre-configured shortcuts for git, development, and system commands
+- **Pipeline Support** - Full support for command chaining and redirection
 
-### From Source
+### 🌐 **Cross-Platform**
+- **Universal Compatibility** - Native support for Windows, Linux, and macOS
+- **PATH Resolution** - Intelligent executable discovery across all platforms
+- **Windows Batch Support** - Seamless .bat, .cmd, and .exe execution on Windows
+- **Unix Permissions** - Proper executable bit detection on Unix systems
+
+---
+
+## 🏃 Quick Start
+
+### Installation
 
 ```bash
-git clone https://github.com/username/flex-sh.git
-cd flex-sh
+# Clone the repository
+git clone https://github.com/yourusername/Flex-SH.git
+cd Flex-SH
+
+# Build the release version
 cargo build --release
+
+# Run the shell
+./target/release/flex-sh
 ```
 
-The binary will be available at `target/release/flex-sh`.
+### First Run
 
-### Using Cargo
+1. **Start the shell** - Run `flex-sh` to start your new shell experience
+2. **Tab to complete** - Try typing `git st` and press Tab to see intelligent completion
+3. **Explore commands** - Type `help` to see available built-in commands
+4. **Customize** - Copy `flex-sh-config.toml` to set up your perfect environment
+
+---
+
+## 🎨 Beautiful Prompts
+
+Flex-SH comes with stunning, informative prompts out of the box:
 
 ```bash
-cargo install flex-sh
+┌─[user@hostname]─[~/projects/flex-sh]
+└─❯ git status
+
+[user@hostname Flex-SH]$ ls -la
+
+user@hostname:~/Documents$ npm run dev
 ```
 
-## Usage
+### Prompt Variables
 
-### Basic Usage
+Customize your prompt with these dynamic variables:
 
-Start the shell:
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `{user}` | Current username | `john` |
+| `{hostname}` | System hostname | `dev-machine` |
+| `{cwd}` | Current directory (home-relative) | `~/projects/app` |
+| `{cwd_name}` | Just directory name | `app` |
+| `{time}` | Current time | `14:30:25` |
+| `{date}` | Current date | `2024-09-14` |
+| `{git_branch}` | Git branch (when in repo) | `main` |
+
+---
+
+## ⚙️ Configuration
+
+Flex-SH is highly configurable through TOML files. The shell looks for config files in this order:
+
+1. Path specified with `--config` flag
+2. `~/.config/flex-sh/config.toml` (Linux/macOS)
+3. `%APPDATA%/flex-sh/config.toml` (Windows)
+4. `config.toml` in current directory
+
+### Quick Setup
+
 ```bash
-flex-sh
+# Copy the beautiful example config
+cp flex-sh-config.toml ~/.config/flex-sh/config.toml
+
+# Or customize the comprehensive example
+cp example-config.toml ~/.config/flex-sh/config.toml
 ```
 
-Execute a single command:
-```bash
-flex-sh -c "ls -la"
-```
+### Configuration Sections
 
-Run a script:
-```bash
-flex-sh script.sh
-```
-
-### Command Line Options
-
-```
-flex-sh [OPTIONS] [SCRIPT]
-
-Options:
-  -c, --command <COMMAND>    Execute a single command and exit
-  -i, --interactive          Interactive mode (default)
-  -v, --verbose              Verbose output
-      --no-color             Disable colors
-      --config <CONFIG>      Configuration file path
-  -h, --help                 Print help information
-  -V, --version              Print version information
-
-Arguments:
-  <SCRIPT>  Script file to execute
-```
-
-## Configuration
-
-Flex-SH looks for configuration files in the following order:
-1. File specified by `--config` option
-2. `~/.config/flex-sh/config.toml` (Unix/Linux/macOS)
-3. `%APPDATA%\\flex-sh\\config.toml` (Windows)
-4. `.flexsh.toml` in the current directory
-
-### Example Configuration
-
+#### 🎨 **Prompt Configuration**
 ```toml
 [prompt]
-format = "[{user}@{host} {cwd}]$ "
+format = "┌─[{user}@{hostname}]─[{cwd}]\\n└─❯ "
 show_git = true
 show_time = false
 show_exit_code = true
+```
+
+#### 🌈 **Colors & Themes**
+```toml
+[colors]
+enabled = true
+scheme = "monokai"  # dark, light, monokai, default
+command_color = "#50FA7B"
+error_color = "#FF5555"
+```
+
+#### 📚 **History Management**
+```toml
+[history]
+max_entries = 50000
+ignore_duplicates = true
+ignore_space_prefixed = true  # Commands starting with space won't be saved
+```
+
+#### 🔗 **Aliases**
+```toml
+[aliases]
+# Git shortcuts
+"gs" = "git status"
+"ga" = "git add"
+"gc" = "git commit -m"
+"gp" = "git push"
+
+# Navigation
+".." = "cd .."
+"~" = "cd ~"
+
+# Development
+"serve" = "python -m http.server 8000"
+```
+
+---
+
+## 🔤 Tab Completion
+
+Flex-SH features intelligent tab completion that works seamlessly across all scenarios:
+
+### **Command Completion**
+- **Built-in Commands** - `cd`, `ls`, `pwd`, `history`, etc.
+- **System Programs** - All executables in your PATH
+- **Smart Filtering** - Only relevant matches shown
+
+### **Path Completion**
+- **Simple Paths** - `./src/` → shows files in src directory
+- **Complex Relative Paths** - `../../../project/src/` → full navigation support
+- **Home Directory** - `~/` → expands to your home directory
+- **Cross-Platform** - Works identically on Windows, Linux, and macOS
+
+### **Advanced Features**
+- **Case-Insensitive** - Works regardless of case (configurable)
+- **Fuzzy Matching** - Smart partial matching
+- **Directory First** - Directories shown before files
+- **Hidden File Support** - Show/hide dotfiles as needed
+
+---
+
+## 🛠️ Built-in Commands
+
+Flex-SH includes a comprehensive set of built-in commands:
+
+| Command | Description | Example |
+|---------|-------------|---------|
+| `cd` | Change directory with tilde expansion | `cd ~/projects` |
+| `ls` | List directory contents with colors | `ls -la` |
+| `pwd` | Print working directory | `pwd` |
+| `echo` | Print text with color support | `echo "Hello World"` |
+| `history` | Command history management | `history 10` |
+| `alias` | Create command shortcuts | `alias ll='ls -la'` |
+| `env` | Environment variable management | `env PATH` |
+| `which` | Find executable location | `which python` |
+| `help` | Show available commands | `help` |
+| `clear` | Clear terminal screen | `clear` |
+| `exit` | Exit the shell | `exit` |
+
+---
+
+## 🔧 Advanced Features
+
+### **Pipeline Support**
+```bash
+ls -la | grep ".rs" | wc -l
+cat file.txt | sort | uniq > output.txt
+```
+
+### **Background Processes**
+```bash
+long-running-command &
+python server.py &
+```
+
+### **Redirection**
+```bash
+command > output.txt      # Redirect stdout
+command >> output.txt     # Append to file
+command < input.txt       # Redirect stdin
+command 2> errors.txt     # Redirect stderr
+```
+
+### **Environment Variables**
+```bash
+export MY_VAR=value
+echo $MY_VAR
+```
+
+### **Command History**
+```bash
+history           # Show command history
+history 20        # Show last 20 commands
+Ctrl+R            # Reverse search history
+```
+
+---
+
+## 🎯 Use Cases
+
+### **Developers**
+- **Git Workflow** - Integrated git shortcuts and branch display
+- **Project Navigation** - Smart directory completion and bookmarks
+- **Build Tools** - Aliases for common build commands and scripts
+- **Multi-Platform** - Consistent experience across dev environments
+
+### **System Administrators**
+- **Server Management** - Remote-friendly prompts and efficient navigation
+- **Batch Operations** - Powerful pipeline and redirection support
+- **Process Management** - Background job control and monitoring
+- **Security** - Sensitive command filtering and audit trails
+
+### **Power Users**
+- **Productivity** - Extensive customization and automation options
+- **Aesthetics** - Beautiful, informative interface
+- **Performance** - Fast execution and intelligent caching
+- **Flexibility** - Adapt the shell to your exact workflow
+
+---
+
+## 📁 Project Structure
+
+```
+Flex-SH/
+├── src/
+│   ├── main.rs              # Entry point and CLI handling
+│   ├── cli.rs               # Command-line argument parsing
+│   ├── core/
+│   │   ├── shell.rs         # Main shell implementation
+│   │   ├── parser.rs        # Command parsing and tokenization
+│   │   ├── executor.rs      # Command execution engine
+│   │   └── history.rs       # Command history management
+│   ├── builtins/            # Built-in commands
+│   │   ├── cd.rs
+│   │   ├── ls.rs
+│   │   └── ...
+│   ├── config/              # Configuration system
+│   │   ├── mod.rs
+│   │   └── settings.rs
+│   ├── terminal/            # Terminal interface
+│   │   ├── mod.rs
+│   │   └── colors.rs
+│   └── utils/               # Utility functions
+├── config.toml              # Active configuration
+├── flex-sh-config.toml      # Beautiful example config
+├── example-config.toml      # Comprehensive config template
+├── CONFIG.md               # Detailed configuration guide
+└── README.md               # This file
+```
+
+---
+
+## 🔧 Configuration Examples
+
+### **Minimal Setup**
+```toml
+[prompt]
+format = "{user}@{hostname}:{cwd}$ "
 
 [colors]
 enabled = true
-scheme = "monokai"
-command_color = "bright_blue"
-argument_color = "white"
-error_color = "bright_red"
-success_color = "bright_green"
-
-[history]
-max_entries = 10000
-ignore_duplicates = true
-ignore_space_prefixed = true
-
-[completion]
-enabled = true
-case_sensitive = false
-fuzzy_matching = true
 
 [aliases]
 ll = "ls -la"
-la = "ls -A"
-l = "ls -CF"
+".." = "cd .."
+```
+
+### **Developer Setup**
+```toml
+[prompt]
+format = "┌─[{user}@{hostname}]─[{cwd}]\\n└─❯ "
+show_git = true
+
+[colors]
+enabled = true
+scheme = "monokai"
+
+[aliases]
+# Git workflow
+"gs" = "git status"
+"ga" = "git add"
+"gc" = "git commit -m"
+"gp" = "git push"
+"gpl" = "git pull"
+
+# Development
+"serve" = "python -m http.server 8000"
+"build" = "cargo build --release"
+"test" = "cargo test"
 
 [environment]
-EDITOR = "vim"
-PAGER = "less"
+"EDITOR" = "code"
+"RUST_BACKTRACE" = "1"
 ```
 
-## Built-in Commands
-
-### Directory Navigation
-```bash
-cd                    # Go to home directory
-cd /path/to/dir      # Change to specified directory
-cd -                 # Go to previous directory
-pwd                  # Print current directory
-```
-
-### File Operations
-```bash
-ls                   # List files
-ls -la               # Long format with hidden files
-ls -h                # Human-readable sizes
-```
-
-### System Information
-```bash
-env                  # Show all environment variables
-env VAR=value        # Set environment variable
-which command        # Find command location
-```
-
-### Shell Operations
-```bash
-help                 # Show all built-in commands
-help command         # Show help for specific command
-history              # Show command history (planned)
-alias name=command   # Create alias (planned)
-clear                # Clear screen
-exit [code]          # Exit shell
-```
-
-## Advanced Features
-
-### Redirection
-```bash
-command > file.txt       # Redirect output
-command >> file.txt      # Append output
-command < input.txt      # Redirect input
-```
-
-### Pipelines
-```bash
-ls | grep pattern        # Pipe output to grep
-cat file | sort | uniq   # Multiple pipes
-```
-
-### Background Processes
-```bash
-sleep 10 &              # Run in background
-```
-
-### Variable Expansion
-```bash
-echo $HOME              # Environment variables
-echo ${USER}            # Braced variables
-```
-
-### Glob Patterns
-```bash
-ls *.txt               # All .txt files
-ls file?.log           # Single character wildcard
-ls file[0-9].txt       # Character class
-```
-
-## Color Schemes
-
-Flex-SH supports multiple color schemes:
-
-- **default**: Bright colors optimized for dark terminals
-- **dark**: Muted colors for dark terminals
-- **light**: Colors optimized for light terminals
-- **monokai**: Popular Monokai color scheme
-
-Change color scheme in config:
+### **System Admin Setup**
 ```toml
-[colors]
-scheme = "monokai"
+[prompt]
+format = "[{user}@{hostname} {cwd}]# "
+show_exit_code = true
+
+[history]
+max_entries = 100000
+ignore_space_prefixed = true
+
+[aliases]
+# System monitoring
+"ps" = "ps aux"
+"mem" = "free -h"
+"disk" = "df -h"
+"top" = "htop"
+
+# Network
+"ports" = "netstat -tlnp"
+"ips" = "ip addr show"
 ```
 
-## Development
+---
 
-### Building
+## 🤝 Contributing
 
-```bash
-cargo build           # Debug build
-cargo build --release # Release build
-```
+We welcome contributions! Here's how you can help:
 
-### Testing
-
-```bash
-cargo test            # Run all tests
-cargo test --lib      # Library tests only
-```
-
-### Linting
-
-```bash
-cargo clippy          # Run linter
-cargo fmt             # Format code
-```
-
-## Architecture
-
-Flex-SH is built with a modular architecture:
-
-- **Core**: Shell engine, parser, executor
-- **Terminal**: Cross-platform terminal interface
-- **Builtins**: Built-in command implementations
-- **Utils**: Utilities for completion, path handling, etc.
-- **Config**: Configuration management
-
-### Module Structure
-
-```
-src/
-├── main.rs              # Entry point
-├── cli.rs               # Command line interface
-├── core/                # Core shell functionality
-│   ├── shell.rs         # Main shell loop
-│   ├── parser.rs        # Command parsing
-│   ├── executor.rs      # Command execution
-│   └── history.rs       # Command history
-├── terminal/            # Terminal interface
-│   ├── mod.rs           # Terminal abstraction
-│   ├── colors.rs        # Color scheme management
-│   ├── events.rs        # Event handling
-│   └── interface.rs     # Terminal UI
-├── builtins/            # Built-in commands
-│   ├── mod.rs           # Builtin command registry
-│   ├── cd.rs            # Change directory
-│   ├── ls.rs            # List files
-│   └── ...              # Other builtins
-├── config/              # Configuration system
-│   ├── mod.rs           # Configuration types
-│   └── settings.rs      # Settings management
-└── utils/               # Utility modules
-    ├── completion.rs    # Tab completion
-    ├── path.rs          # Path utilities
-    └── glob_expand.rs   # Glob expansion
-```
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
+1. **🐛 Report Bugs** - Open an issue with details and reproduction steps
+2. **💡 Suggest Features** - Share ideas for new functionality
+3. **🔧 Submit PRs** - Fix bugs or implement new features
+4. **📖 Improve Docs** - Help make documentation clearer
+5. **🎨 Themes** - Create new color schemes and prompt designs
 
 ### Development Setup
 
-1. Install Rust and Cargo
-2. Clone the repository
-3. Run tests: `cargo test`
-4. Make your changes
-5. Ensure tests pass
-6. Submit a pull request
+```bash
+# Clone and build
+git clone https://github.com/yourusername/Flex-SH.git
+cd Flex-SH
+cargo build
 
-## License
+# Run tests
+cargo test
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+# Check code style
+cargo fmt
+cargo clippy
+```
 
-## Roadmap
+---
 
-- [ ] Enhanced tab completion with fuzzy matching
-- [ ] Plugin system for extensibility
-- [ ] Scripting language integration
-- [ ] Remote shell capabilities
-- [ ] Session management
-- [ ] More built-in utilities
-- [ ] Performance optimizations
-- [ ] Windows-specific features
-- [ ] Integration with system package managers
+## 📜 License
+
+Flex-SH is released under the MIT License. See [LICENSE](LICENSE) for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- **Rust Community** - For the excellent ecosystem and tools
+- **Rustyline** - For readline functionality and tab completion
+- **Tokio** - For async runtime and process management
+- **Clap** - For command-line argument parsing
+- **Serde** - For configuration serialization
+
+---
+
+## 📞 Support
+
+- **📖 Documentation** - See [CONFIG.md](CONFIG.md) for detailed configuration
+- **🐛 Issues** - Report bugs on GitHub Issues
+- **💬 Discussions** - Join GitHub Discussions for questions and ideas
+- **📧 Contact** - Reach out to the maintainers
+
+---
+
+**Made with ❤️ and ☕ by the Flex-SH team**
+
+*Transform your command line experience with Flex-SH - where power meets beauty!*

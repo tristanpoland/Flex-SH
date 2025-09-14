@@ -14,7 +14,14 @@
       "Bash(./target/release/flex-sh.exe -c \"cd ~; pwd\")",
       "Bash(./target/release/flex-sh.exe -c \"cd ~\")",
       "Bash(./target/release/flex-sh.exe -c pwd)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(./target/release/flex-sh.exe -c \"where code\")",
+      "Bash(./target/release/flex-sh.exe -c \"echo Checking config paths\")",
+      "Bash(RUST_LOG=debug ./target/release/flex-sh.exe -c \"echo Config test\")",
+      "Bash(RUST_LOG=info ./target/release/flex-sh.exe -c \"echo Config path test\")",
+      "Bash(set RUST_LOG=info)",
+      "Bash(./target/release/flex-sh.exe -c \"echo Config path test\")",
+      "Read(//c/Users/redst/.config/flex-sh/**)"
     ],
     "deny": [],
     "ask": []
