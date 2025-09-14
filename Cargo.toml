@@ -1,0 +1,68 @@
+[package]
+name = "flex-sh"
+version = "0.1.0"
+edition = "2021"
+authors = ["Flex-SH Contributors"]
+description = "A high-performance, modern system shell with rich features and cross-platform support"
+license = "MIT"
+repository = "https://github.com/tristanpoland/flex-sh"
+keywords = ["shell", "terminal", "cli", "cross-platform"]
+categories = ["command-line-utilities"]
+
+[dependencies]
+# Core async runtime
+tokio = { version = "1.0", features = ["full"] }
+
+# Terminal and color support
+crossterm = "0.29.0"
+colored = "3.0.0"
+
+# Command line parsing and completion
+clap = { version = "4.0", features = ["derive", "color"] }
+rustyline = "17.0.1"
+
+# File system operations
+glob = "0.3"
+walkdir = "2.4"
+
+# Process management
+subprocess = "0.2"
+
+# Configuration and serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.9.5"
+dirs = "6.0.0"
+gethostname = "1.0.2"
+chrono = { version = "0.4", features = ["serde"] }
+async-trait = "0.1"
+
+# Error handling
+anyhow = "1.0"
+thiserror = "2.0.16"
+
+# Logging
+log = "0.4"
+env_logger = "0.11.8"
+
+# Platform-specific features
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winuser", "consoleapi", "processenv"] }
+
+[target.'cfg(unix)'.dependencies]
+nix = "0.30.1"
+
+[dev-dependencies]
+tempfile = "3.8"
+assert_cmd = "2.0"
+predicates = "3.0"
+
+[[bin]]
+name = "flex-sh"
+path = "src/main.rs"
+
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
