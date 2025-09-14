@@ -7,7 +7,11 @@
 
 [prompt]
 # Prompt format with variables: {user}, {hostname}, {cwd}, {git_branch}, {time}
-format = "┌─[{user}@{hostname}]─[{cwd}]\n└─❯ "
+# Available color codes:
+#   Basic colors: {red}, {green}, {blue}, {yellow}, {magenta}, {cyan}, {white}, {black}
+#   Bright colors: {bright_red}, {bright_green}, {bright_blue}, {bright_yellow}, {bright_magenta}, {bright_cyan}, {bright_white}, {bright_black}
+#   Styles: {bold}, {dim}, {italic}, {underline}, {reset}
+format = "{bright_blue}┌─[{bright_green}{user}{reset}@{bright_cyan}{hostname}{reset}{bright_blue}]─[{bright_yellow}{cwd}{reset}{bright_blue}]\n└─{bright_magenta}❯{reset} "
 
 # Show git branch when in a git repository
 show_git = true

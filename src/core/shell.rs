@@ -28,11 +28,65 @@ impl ShellHelper {
     }
 
     fn set_colored_prompt(&mut self, prompt: &str) {
-        // Create colored version for display
-        self.colored_prompt = prompt
-            .replace("[", &format!("{}", "[".bright_cyan()))
-            .replace("]", &format!("{}", "]".bright_cyan()))
-            .replace("$", &format!("{}", "$".bright_magenta().bold()));
+        let processed = self.process_color_codes(prompt.to_string());
+        log::debug!("Original prompt: {}", prompt);
+        log::debug!("Processed prompt: {}", processed);
+        self.colored_prompt = processed;
+    }
+
+    fn process_color_codes(&self, prompt: String) -> String {
+        // Apply colors to the text that comes after each color code
+        let mut result = String::new();
+        let mut chars: std::iter::Peekable<std::str::Chars> = prompt.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '{' {
+                // Collect the color code
+                let mut color_code = String::new();
+                while let Some(&next_ch) = chars.peek() {
+                    if next_ch == '}' {
+                        chars.next(); // consume the '}'
+                        break;
+                    }
+                    color_code.push(chars.next().unwrap());
+                }
+
+                // Apply the color based on the code
+                match color_code.as_str() {
+                    "red" => result.push_str("\x1b[31m"),
+                    "green" => result.push_str("\x1b[32m"),
+                    "blue" => result.push_str("\x1b[34m"),
+                    "yellow" => result.push_str("\x1b[33m"),
+                    "magenta" => result.push_str("\x1b[35m"),
+                    "cyan" => result.push_str("\x1b[36m"),
+                    "white" => result.push_str("\x1b[37m"),
+                    "black" => result.push_str("\x1b[30m"),
+                    "bright_red" => result.push_str("\x1b[91m"),
+                    "bright_green" => result.push_str("\x1b[92m"),
+                    "bright_blue" => result.push_str("\x1b[94m"),
+                    "bright_yellow" => result.push_str("\x1b[93m"),
+                    "bright_magenta" => result.push_str("\x1b[95m"),
+                    "bright_cyan" => result.push_str("\x1b[96m"),
+                    "bright_white" => result.push_str("\x1b[97m"),
+                    "bright_black" => result.push_str("\x1b[90m"),
+                    "reset" => result.push_str("\x1b[0m"),
+                    "bold" => result.push_str("\x1b[1m"),
+                    "dim" => result.push_str("\x1b[2m"),
+                    "italic" => result.push_str("\x1b[3m"),
+                    "underline" => result.push_str("\x1b[4m"),
+                    _ => {
+                        // Unknown color code, put it back as-is
+                        result.push('{');
+                        result.push_str(&color_code);
+                        result.push('}');
+                    }
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+
+        result
     }
 
     // Manual path completion for all path scenarios
@@ -324,10 +378,11 @@ impl Highlighter for ShellHelper {
         prompt: &'p str,
         default: bool,
     ) -> Cow<'b, str> {
-        if default && !self.colored_prompt.is_empty() {
-            Cow::Borrowed(&self.colored_prompt)
-        } else {
+        if default || self.colored_prompt.is_empty() {
             Cow::Borrowed(prompt)
+        } else {
+            // Return the colored version which has same display width as clean prompt
+            Cow::Owned(self.colored_prompt.clone())
         }
     }
 
@@ -431,12 +486,15 @@ impl Shell {
     async fn run_interactive(&mut self) -> Result<()> {
         let prompt = self.build_prompt()?;
 
-        // Set the colored prompt in the helper
+        // Store the original prompt for highlighting
         if let Some(helper) = self.editor.helper_mut() {
             helper.set_colored_prompt(&prompt);
         }
 
-        match self.editor.readline(&prompt) {
+        // Create clean prompt without color codes for width calculation
+        let clean_prompt = self.remove_color_codes(&prompt);
+
+        match self.editor.readline(&clean_prompt) {
             Ok(line) => {
                 let line = line.trim();
 
@@ -512,13 +570,15 @@ impl Shell {
         // Get current time
         let time = chrono::Local::now().format("%H:%M:%S").to_string();
 
-        // Replace all variables with colored versions
-        prompt = prompt.replace("{user}", &user.bright_green().to_string());
-        prompt = prompt.replace("{host}", &hostname.bright_cyan().to_string());
-        prompt = prompt.replace("{hostname}", &hostname.bright_cyan().to_string());
-        prompt = prompt.replace("{cwd}", &cwd_home.bright_blue().to_string());
-        prompt = prompt.replace("{cwd_name}", &cwd_name.bright_blue().to_string());
-        prompt = prompt.replace("{time}", &time.bright_yellow().to_string());
+        // Replace all variables (no colors here - handled by color codes)
+        prompt = prompt.replace("{user}", &user);
+        prompt = prompt.replace("{host}", &hostname);
+        prompt = prompt.replace("{hostname}", &hostname);
+        prompt = prompt.replace("{cwd}", &cwd_home);
+        prompt = prompt.replace("{cwd_name}", &cwd_name);
+        prompt = prompt.replace("{time}", &time);
+
+        // Don't process color codes here - let rustyline Highlighter handle it
 
         // Add exit code if enabled and non-zero
         if config.prompt.show_exit_code && self.exit_code != 0 {
@@ -533,6 +593,83 @@ impl Shell {
         // Don't color the prompt here - rustyline helper will handle coloring
 
         Ok(prompt)
+    }
+
+    fn process_color_codes(&self, mut prompt: String) -> String {
+        // Apply colors to the text that comes after each color code
+        let mut result = String::new();
+        let mut chars: std::iter::Peekable<std::str::Chars> = prompt.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '{' {
+                // Collect the color code
+                let mut color_code = String::new();
+                while let Some(&next_ch) = chars.peek() {
+                    if next_ch == '}' {
+                        chars.next(); // consume the '}'
+                        break;
+                    }
+                    color_code.push(chars.next().unwrap());
+                }
+
+                // Apply the color based on the code
+                match color_code.as_str() {
+                    "red" => result.push_str("\x1b[31m"),
+                    "green" => result.push_str("\x1b[32m"),
+                    "blue" => result.push_str("\x1b[34m"),
+                    "yellow" => result.push_str("\x1b[33m"),
+                    "magenta" => result.push_str("\x1b[35m"),
+                    "cyan" => result.push_str("\x1b[36m"),
+                    "white" => result.push_str("\x1b[37m"),
+                    "black" => result.push_str("\x1b[30m"),
+                    "bright_red" => result.push_str("\x1b[91m"),
+                    "bright_green" => result.push_str("\x1b[92m"),
+                    "bright_blue" => result.push_str("\x1b[94m"),
+                    "bright_yellow" => result.push_str("\x1b[93m"),
+                    "bright_magenta" => result.push_str("\x1b[95m"),
+                    "bright_cyan" => result.push_str("\x1b[96m"),
+                    "bright_white" => result.push_str("\x1b[97m"),
+                    "bright_black" => result.push_str("\x1b[90m"),
+                    "reset" => result.push_str("\x1b[0m"),
+                    "bold" => result.push_str("\x1b[1m"),
+                    "dim" => result.push_str("\x1b[2m"),
+                    "italic" => result.push_str("\x1b[3m"),
+                    "underline" => result.push_str("\x1b[4m"),
+                    _ => {
+                        // Unknown color code, put it back as-is
+                        result.push('{');
+                        result.push_str(&color_code);
+                        result.push('}');
+                    }
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+
+        result
+    }
+
+    fn remove_color_codes(&self, prompt: &str) -> String {
+        // Remove color codes from prompt for width calculation
+        let mut result = String::new();
+        let mut chars: std::iter::Peekable<std::str::Chars> = prompt.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if ch == '{' {
+                // Skip the color code
+                while let Some(&next_ch) = chars.peek() {
+                    chars.next();
+                    if next_ch == '}' {
+                        break;
+                    }
+                }
+            } else {
+                result.push(ch);
+            }
+        }
+
+        result
     }
 
     pub async fn execute_command(&mut self, command: &str) -> Result<()> {
