@@ -45,6 +45,7 @@ thiserror = "2.0.16"
 # Logging
 log = "0.4"
 env_logger = "0.11.8"
+ctrlc = "3.5.0"
 
 # Platform-specific features
 [target.'cfg(windows)'.dependencies]

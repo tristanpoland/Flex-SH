@@ -5,17 +5,31 @@ use log::debug;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
+use ctrlc;
 use tokio::process::{Child, Command as TokioCommand};
 use tokio::fs::File;
 
 pub struct Executor {
     background_processes: HashMap<u32, Child>,
+    interrupt_flag: Arc<AtomicBool>,
 }
 
 impl Executor {
     pub fn new() -> Self {
+        let interrupt_flag = Arc::new(AtomicBool::new(false));
+        let flag_clone = interrupt_flag.clone();
+        ctrlc::set_handler(move || {
+            if !flag_clone.load(Ordering::SeqCst) {
+                flag_clone.store(true, Ordering::SeqCst);
+            } else {
+                // Second Ctrl+C: force exit
+                std::process::exit(130);
+            }
+        }).expect("Error setting Ctrl-C handler");
         Self {
             background_processes: HashMap::new(),
+            interrupt_flag,
         }
     }
 
@@ -106,6 +120,11 @@ impl Executor {
         current_dir: &mut PathBuf,
     ) -> Result<i32> {
         debug!("Executing builtin: {}", command.program);
+        // Pass interrupt flag to builtins
+        if self.interrupt_flag.load(Ordering::SeqCst) {
+            self.interrupt_flag.store(false, Ordering::SeqCst);
+            return Ok(130);
+        }
         builtin.execute(command, current_dir, &mut self.background_processes).await
     }
 
@@ -182,9 +201,31 @@ impl Executor {
         }
 
         let mut child = cmd.spawn()?;
-        let status = child.wait().await?;
-
-        Ok(status.code().unwrap_or(-1))
+        let interrupt_flag = self.interrupt_flag.clone();
+        let child_id = child.id().unwrap_or(0);
+        let res = tokio::select! {
+            status = child.wait() => {
+                status?.code().unwrap_or(-1)
+            }
+            _ = async {
+                while !interrupt_flag.load(Ordering::SeqCst) {
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                }
+            } => {
+                // Send SIGINT to child
+                #[cfg(unix)] {
+                    use nix::sys::signal::{kill, Signal};
+                    use nix::unistd::Pid;
+                    let _ = kill(Pid::from_raw(child_id as i32), Signal::SIGINT);
+                }
+                #[cfg(windows)] {
+                    let _ = child.kill().await;
+                }
+                interrupt_flag.store(false, Ordering::SeqCst);
+                130
+            }
+        };
+        Ok(res)
     }
 
     async fn execute_pipeline(&mut self, mut command: ParsedCommand, current_dir: &PathBuf) -> Result<i32> {

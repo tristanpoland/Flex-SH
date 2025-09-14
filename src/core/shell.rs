@@ -487,14 +487,15 @@ impl Shell {
         let prompt = self.build_prompt()?;
 
         // Store the original prompt for highlighting
-        if let Some(helper) = self.editor.helper_mut() {
+        let colored_prompt = if let Some(helper) = self.editor.helper_mut() {
             helper.set_colored_prompt(&prompt);
-        }
+            helper.colored_prompt.clone()
+        } else {
+            prompt.clone()
+        };
 
-        // Create clean prompt without color codes for width calculation
-        let clean_prompt = self.remove_color_codes(&prompt);
-
-        match self.editor.readline(&clean_prompt) {
+        // Use colored prompt for display
+        match self.editor.readline(&colored_prompt) {
             Ok(line) => {
                 let line = line.trim();
 
