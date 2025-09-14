@@ -6,24 +6,21 @@ use anyhow::Result;
 use colored::*;
 use log::{debug, info, warn};
 use rustyline::{Editor, Helper, Context, Config as EditorConfig, CompletionType, EditMode};
-use rustyline::completion::FilenameCompleter;
+use rustyline::completion::{Completer, Pair, extract_word};
+use std::path::{Path, PathBuf};
 use rustyline::history::DefaultHistory;
 use rustyline::highlight::Highlighter;
-use rustyline_derive::{Completer, Helper, Hinter, Validator};
+use rustyline_derive::{Helper, Hinter, Validator};
 use std::borrow::Cow;
-use std::path::PathBuf;
 
-#[derive(Helper, Completer, Hinter, Validator)]
+#[derive(Helper, Hinter, Validator)]
 struct ShellHelper {
-    #[rustyline(Completer)]
-    completer: FilenameCompleter,
     colored_prompt: String,
 }
 
 impl ShellHelper {
     fn new() -> Self {
         ShellHelper {
-            completer: FilenameCompleter::new(),
             colored_prompt: String::new(),
         }
     }
@@ -34,6 +31,192 @@ impl ShellHelper {
             .replace("[", &format!("{}", "[".bright_cyan()))
             .replace("]", &format!("{}", "]".bright_cyan()))
             .replace("$", &format!("{}", "$".bright_magenta().bold()));
+    }
+
+    // Manual path completion for all path scenarios
+    fn complete_complex_path(&self, word: &str, _start: usize) -> Option<Vec<Pair>> {
+        debug!("Attempting path completion for: '{}'", word);
+
+        // Handle simple filenames in current directory
+        let (dir_part, file_part) = if word.is_empty() {
+            (String::new(), String::new())
+        } else if word.ends_with('/') || word.ends_with('\\') {
+            // Directory listing - remove trailing slash
+            let clean_word = word.trim_end_matches('/').trim_end_matches('\\');
+            (clean_word.to_string(), String::new())
+        } else if word.contains('/') || word.contains('\\') {
+            // Path with directory component
+            let path = Path::new(word);
+            match path.parent() {
+                Some(parent) => {
+                    let dir = parent.to_string_lossy().to_string();
+                    let file = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+                    (dir, file)
+                },
+                None => (String::new(), word.to_string()),
+            }
+        } else {
+            // Simple filename in current directory
+            (String::new(), word.to_string())
+        };
+
+        debug!("Split path: dir='{}', file='{}'", dir_part, file_part);
+
+        // Resolve the directory path
+        let current_dir = match std::env::current_dir() {
+            Ok(dir) => dir,
+            Err(_) => return None,
+        };
+
+        let target_dir = if dir_part.is_empty() {
+            current_dir
+        } else {
+            let dir_path = Path::new(&dir_part);
+            if dir_path.is_absolute() {
+                dir_path.to_path_buf()
+            } else {
+                current_dir.join(dir_path)
+            }
+        };
+
+        debug!("Target directory: {:?}", target_dir);
+
+        // Try to canonicalize (resolve ./ and ../ components)
+        let resolved_dir = match target_dir.canonicalize() {
+            Ok(dir) => dir,
+            Err(e) => {
+                debug!("Failed to canonicalize directory: {:?}", e);
+                return None;
+            }
+        };
+
+        debug!("Resolved directory: {:?}", resolved_dir);
+
+        // Read directory contents
+        let entries = match resolved_dir.read_dir() {
+            Ok(entries) => entries,
+            Err(e) => {
+                debug!("Failed to read directory: {:?}", e);
+                return None;
+            }
+        };
+
+        let mut matches = Vec::new();
+        for entry in entries {
+            if let Ok(entry) = entry {
+                let file_name = entry.file_name();
+                let name = file_name.to_string_lossy();
+
+                // Filter based on file_part prefix
+                if name.starts_with(&file_part) {
+                    let display = name.to_string();
+
+                    // Determine the proper replacement based on context
+                    let replacement = if file_part.is_empty() {
+                        // Directory listing case - word ends with slash or is a complete directory name
+                        let base = if word.ends_with('/') || word.ends_with('\\') {
+                            // Replace from the slash onwards
+                            if dir_part.is_empty() {
+                                format!("./{}", name)
+                            } else {
+                                format!("{}/{}", dir_part, name)
+                            }
+                        } else {
+                            // Complete directory name
+                            if dir_part.is_empty() {
+                                name.to_string()
+                            } else {
+                                format!("{}/{}", dir_part, name)
+                            }
+                        };
+
+                        // Add trailing slash for directories
+                        if entry.path().is_dir() {
+                            format!("{}/", base)
+                        } else {
+                            base
+                        }
+                    } else {
+                        // Partial filename completion
+                        let base = if dir_part.is_empty() {
+                            name.to_string()
+                        } else {
+                            format!("{}/{}", dir_part, name)
+                        };
+
+                        // Add trailing slash for directories
+                        if entry.path().is_dir() {
+                            format!("{}/", base)
+                        } else {
+                            base
+                        }
+                    };
+
+                    matches.push(Pair {
+                        display,
+                        replacement,
+                    });
+                }
+            }
+        }
+
+        debug!("Found {} manual matches", matches.len());
+        if matches.is_empty() { None } else { Some(matches) }
+    }
+}
+
+// Custom Completer implementation for better relative path handling
+impl Completer for ShellHelper {
+    type Candidate = Pair;
+
+    fn complete(
+        &self,
+        line: &str,
+        pos: usize,
+        ctx: &Context<'_>,
+    ) -> rustyline::Result<(usize, Vec<Self::Candidate>)> {
+        // Extract the word at cursor position with custom break characters
+        // Include . and / as part of the word for relative paths
+        let (start, word) = extract_word(line, pos, None, |c| {
+            c == ' ' || c == '\t' || c == '\n' || c == '\r'
+        });
+
+        debug!("Completion: line='{}', pos={}, start={}, word='{}'", line, pos, start, word);
+
+        debug!("Completion request for word: '{}' at position {} (start={})", word, pos, start);
+
+        // Handle built-in commands (only at start of line)
+        if start == 0 {
+            let builtin_commands = [
+                "cd", "echo", "exit", "help", "history", "ls", "pwd",
+                "alias", "env", "which", "clear"
+            ];
+
+            let command_matches: Vec<Pair> = builtin_commands
+                .iter()
+                .filter(|cmd| cmd.starts_with(word))
+                .map(|cmd| Pair {
+                    display: cmd.to_string(),
+                    replacement: cmd.to_string(),
+                })
+                .collect();
+
+            if !command_matches.is_empty() {
+                debug!("Found {} command matches", command_matches.len());
+                return Ok((start, command_matches));
+            }
+        }
+
+        // Handle ALL other completion (files, paths, arguments) manually
+        debug!("Attempting file/path completion");
+        if let Some(file_matches) = self.complete_complex_path(&word, start) {
+            debug!("Found {} file/path matches", file_matches.len());
+            return Ok((start, file_matches));
+        }
+
+        // No matches found
+        debug!("No completion matches found");
+        Ok((start, Vec::new()))
     }
 }
 
