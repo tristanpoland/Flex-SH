@@ -28,6 +28,7 @@ walkdir = "2.4"
 
 # Process management
 subprocess = "0.2"
+portable-pty = "0.9"
 
 # Configuration and serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -46,10 +47,11 @@ thiserror = "2.0.16"
 log = "0.4"
 env_logger = "0.11.8"
 ctrlc = "3.5.0"
+windows-sys = "0.61.0"
 
 # Platform-specific features
 [target.'cfg(windows)'.dependencies]
-winapi = { version = "0.3", features = ["winuser", "consoleapi", "processenv"] }
+winapi = { version = "0.3", features = ["winuser", "consoleapi", "processenv", "jobapi2", "handleapi", "processthreadsapi", "winnt"] }
 
 [target.'cfg(unix)'.dependencies]
 nix = "0.30.1"
